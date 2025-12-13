@@ -1,27 +1,49 @@
 import pandas as pd
+import os
 
-def load_feedback_data(filepath):
+def load_feedback_data(excel_path, sheet_name="Feedback_Data"):
     """
-    Loads feedback data from an Excel file.
+    Loads feedback data from a specific Excel sheet and validates structure.
     
     Args:
-        filepath (str): Path to the Excel file.
+        excel_path (str): Path to the Excel file.
+        sheet_name (str): Name of the sheet to read.
         
     Returns:
         pd.DataFrame: DataFrame containing the feedback data.
     """
+    required_columns = [
+        'Date', 'Customer', 'Feedback Type', 'Rating (1–5)', 
+        'Status', 'Follow-Up', 'Comments'
+    ]
+
+    print(f"Loading data from {excel_path} [{sheet_name}]...")
+
+    if not os.path.exists(excel_path):
+        print(f"Error: File not found at {excel_path}")
+        raise FileNotFoundError(f"Excel file not found: {excel_path}")
+
     try:
-        df = pd.read_excel(filepath, sheet_name='Feedback_Data')
-        # Rename columns to match expected format
-        # Rename columns to match expected format
-        df = df.rename(columns={
-            'Feedback Type': 'Product',
-            'Rating (1–5)': 'Rating',
-            'Comments': 'Comment'
-        })
-        # Keep only needed columns
-        df = df[['Date', 'Customer', 'Product', 'Rating', 'Comment', 'Status']]
+        # Read the Excel file
+        df = pd.read_excel(excel_path, sheet_name=sheet_name)
+        
+        # Validate columns
+        missing_cols = [col for col in required_columns if col not in df.columns]
+        if missing_cols:
+            error_msg = f"Missing required columns in '{sheet_name}': {missing_cols}"
+            print(error_msg)
+            raise ValueError(error_msg)
+            
+        # Minimal data cleaning
+        df = df.dropna(how='all') # Drop completely empty rows
+        
+        print(f"Successfully loaded {len(df)} rows.")
         return df
+
+    except ValueError as ve:
+        # Sheet missing or columns missing
+        print(f"Data Validation Error: {ve}")
+        raise
     except Exception as e:
-        print(f"Error loading data: {e}")
-        return pd.DataFrame()
+        print(f"Unexpected error loading data: {e}")
+        raise

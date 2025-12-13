@@ -6,51 +6,49 @@ def analyze_comments(df):
     Analyzes comments for sentiment and keywords.
     
     Args:
-        df (pd.DataFrame): DataFrame containing 'Comment' column.
+        df (pd.DataFrame): DataFrame containing 'Comments' column.
         
     Returns:
-        pd.DataFrame: DataFrame with added 'Sentiment Score', 'Sentiment', and 'Keywords' columns.
+        pd.DataFrame: DataFrame with added 'Sentiment Score' and 'Keywords' columns.
     """
-    if df.empty or 'Comment' not in df.columns:
+    if df.empty:
+        return df
+        
+    if 'Comments' not in df.columns:
+        print("Warning: 'Comments' column not found for NLP analysis.")
+        df['Sentiment Score'] = 0.0
+        df['Keywords'] = ""
         return df
     
     def get_sentiment(text):
+        if pd.isna(text):
+            return 0.0
         analysis = TextBlob(str(text))
         return analysis.sentiment.polarity
 
     def get_keywords(text):
+        if pd.isna(text):
+            return ""
         text = str(text).lower()
         keywords = []
-        if "network down" in text: keywords.append("network down")
-        if "failed" in text: keywords.append("failed")
-        if "slow" in text: keywords.append("slow")
-        if "crash" in text: keywords.append("crash")
-        if "down" in text: keywords.append("down")
+        # Basic keyword extraction based on common banking issues
+        trigger_words = [
+            "network down", "failed", "slow", "crash", "down", "error", 
+            "timeout", "rude", "wait", "charged", "refund", "login"
+        ]
+        
+        for word in trigger_words:
+            if word in text:
+                keywords.append(word)
+                
         return ", ".join(keywords)
 
-    def classify_issue(row):
-        text = str(row['Comment']).lower()
-        keywords = str(row['Keywords']).lower()
-        
-        # Availability
-        if any(x in text for x in ['crash', 'down', 'network', 'outage', 'unavailable']) or \
-           any(x in keywords for x in ['crash', 'down', 'network']):
-            return 'Availability'
-            
-        # Transaction Success
-        if any(x in text for x in ['slow', 'fail', 'error', 'decline', 'reject', 'timeout']) or \
-           any(x in keywords for x in ['slow', 'failed']):
-            return 'Transaction Success'
-            
-        # Satisfaction (Default or specific keywords)
-        if any(x in text for x in ['great', 'good', 'bad', 'helpful', 'service', 'staff', 'rude']):
-            return 'Satisfaction'
-            
-        return 'Satisfaction' # Default
-
-    df['Sentiment Score'] = df['Comment'].apply(get_sentiment)
-    df['Sentiment'] = df['Sentiment Score'].apply(lambda x: 'Positive' if x > 0 else ('Negative' if x < 0 else 'Neutral'))
-    df['Keywords'] = df['Comment'].apply(get_keywords)
-    df['Feedback Type'] = df.apply(classify_issue, axis=1)
+    print("Calculating sentiment scores...")
+    df['Sentiment Score'] = df['Comments'].apply(get_sentiment)
+    
+    print("Extracting keywords...")
+    df['Keywords'] = df['Comments'].apply(get_keywords)
+    
+    # We no longer need to classify 'Feedback Type' as it is provided in the input
     
     return df

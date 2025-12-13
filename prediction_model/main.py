@@ -13,66 +13,106 @@ from risk_engine import assess_risk
 from recommendation_engine import generate_recommendations
 from export_results import export_to_excel
 
-def main(input_path=None, output_path=None, sheet_name='ModelOutput'):
-    print("Starting Prediction Model...")
+# ========================================
+# CENTRALIZED EXCEL CONFIGURATION
+# ========================================
+EXCEL_FILE_PATH = r"C:\Users\abiod\Documents\GitHub\scratch\prediction_model\data\Feedback_Dashboard_Template.xlsx"
+INPUT_SHEET = "Feedback_Data"
+OUTPUT_SHEET = "Output"
+
+
+def run_model(excel_path=EXCEL_FILE_PATH):
+    """
+    Main model pipeline that reads from Feedback_Data and writes to Output.
     
-    # Define file path
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    Args:
+        excel_path (str): Path to the Excel file containing input and output sheets.
+    """
+    print("="*60)
+    print("PREDICTION & RECOMMENDATION MODEL")
+    print("="*60)
+    print(f"Excel File: {excel_path}")
+    print(f"Input Sheet: {INPUT_SHEET}")
+    print(f"Output Sheet: {OUTPUT_SHEET}")
+    print("="*60)
     
-    if input_path:
-        data_path = input_path
-    else:
-        data_path = os.path.join(base_dir, 'data', 'feedback.xlsx')
+    try:
+        # 1. Load Data from Feedback_Data sheet
+        print("\n[1/6] Loading data...")
+        df = load_feedback_data(excel_path, INPUT_SHEET)
         
-    if output_path:
-        target_path = output_path
-    else:
-        target_path = data_path # Default to same file if not specified
+        if df.empty:
+            print("❌ No data loaded. Exiting.")
+            return
+        
+        print(f"✓ Loaded {len(df)} records")
 
-    print(f"Input Data: {data_path}")
-    print(f"Output Target: {target_path} (Sheet: {sheet_name})")
-    
-    # 1. Load Data
-    print("Loading data...")
-    df = load_feedback_data(data_path)
-    if df.empty:
-        print("No data loaded. Exiting.")
-        return
+        # 2. NLP Analysis
+        print("\n[2/6] Running NLP Analysis...")
+        df_nlp = analyze_comments(df)
+        print(f"✓ Sentiment analysis complete")
+        
+        # 3. Bayesian Probability Model
+        print("\n[3/6] Calculating Probabilities...")
+        prob_df = calculate_probabilities(df_nlp)
+        print(f"✓ Probability scores computed for {len(prob_df)} feedback types")
+        
+        # 4. Risk Scoring
+        print("\n[4/6] Assessing Risk...")
+        risk_df = assess_risk(prob_df)
+        print(f"✓ Risk levels assigned")
+        
+        # 5. Recommendation Engine
+        print("\n[5/6] Generating Recommendations...")
+        final_df = generate_recommendations(risk_df)
+        print(f"✓ Recommendations generated")
+        
+        # 6. Export Results to Output sheet
+        print("\n[6/6] Exporting Results...")
+        export_to_excel(final_df, excel_path, OUTPUT_SHEET)
+        
+        print("\n" + "="*60)
+        print("✅ MODEL RUN COMPLETE")
+        print("="*60)
+        
+    except Exception as e:
+        print(f"\n❌ ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
-    # 2. NLP Analysis
-    print("Running NLP Analysis...")
-    df_nlp = analyze_comments(df)
-    
-    # 3. Bayesian Probability Model
-    print("Calculating Probabilities...")
-    prob_df = calculate_probabilities(df_nlp)
-    
-    # 4. Risk Scoring
-    print("Assessing Risk...")
-    risk_df = assess_risk(prob_df)
-    
-    # 5. Recommendation Engine
-    print("Generating Recommendations...")
-    final_df = generate_recommendations(risk_df)
-    
-    # 6. Export Results
-    print("Exporting Results...")
-    export_to_excel(final_df, target_path, sheet_name)
-    
-    print("Model run complete.")
 
-@xw.func
-def run_model():
-    main()
+@xw.sub
+def run_model_from_excel():
+    """
+    Excel-callable function using xlwings @xw.sub decorator.
+    This can be triggered directly from an Excel macro/button.
+    """
+    print("\n🔵 Model triggered from Excel")
+    run_model(EXCEL_FILE_PATH)
+
 
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description='Run Prediction Model')
-    parser.add_argument('--input', help='Path to input Excel file')
-    parser.add_argument('--output', help='Path to output Excel file')
-    parser.add_argument('--sheet', default='ModelOutput', help='Name of the output sheet')
+    parser = argparse.ArgumentParser(
+        description='Excel-Connected Prediction & Recommendation Model',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=f"""
+Default Configuration:
+  Excel File: {EXCEL_FILE_PATH}
+  Input Sheet: {INPUT_SHEET}
+  Output Sheet: {OUTPUT_SHEET}
+        """
+    )
+    parser.add_argument(
+        '--excel-path', 
+        default=EXCEL_FILE_PATH,
+        help='Path to Excel file (default: configured path)'
+    )
     
     args = parser.parse_args()
     
-    main(args.input, args.output, args.sheet)
+    # Run the model
+    run_model(args.excel_path)
+

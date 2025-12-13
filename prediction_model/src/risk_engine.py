@@ -2,46 +2,52 @@ import pandas as pd
 
 def assess_risk(prob_df):
     """
-    Assess risk based on probability thresholds.
+    Assess risk level based on Average Rating and Sentiment Score.
     
     Args:
-        prob_df (pd.DataFrame): DataFrame with probabilities.
+        prob_df (pd.DataFrame): DataFrame with 'Average Rating' and 'Average Sentiment Score'.
         
     Returns:
-        pd.DataFrame: DataFrame with 'Risk Level' column.
+        pd.DataFrame: DataFrame with 'Risk Level' column added.
     """
     if prob_df.empty:
         return prob_df
     
+    print("Assessing risk levels...")
+    
     def get_risk_level(row):
-        # Thresholds
-        thresholds = {
-            'Availability': {'Warning': 0.40, 'Critical': 0.60},
-            'Transaction Success': {'Warning': 0.35, 'Critical': 0.55},
-            'Satisfaction': {'Warning': 0.30, 'Critical': 0.50}
-        }
+        """
+        Determine risk level based on:
+        - Critical: Avg Rating ≤ 2 AND Strongly negative sentiment
+        - Warning: Avg Rating ≈ 3 OR Mild negative sentiment
+        - Stable: Avg Rating ≥ 4 AND Neutral/Positive sentiment
+        """
+        rating = row.get('Average Rating', 5)
+        sentiment = row.get('Average Sentiment Score', 0)
         
-        risk_level = "Stable"
+        # Critical conditions
+        if rating <= 2 and sentiment < -0.3:
+            return "Critical"
         
-        # Check Availability
-        if row.get('Probability of Availability Issues', 0) > thresholds['Availability']['Critical']:
-            return "Critical Risk"
-        if row.get('Probability of Availability Issues', 0) > thresholds['Availability']['Warning']:
-            risk_level = "Warning"
+        # Warning conditions
+        if (rating > 2 and rating < 3.5) or (sentiment >= -0.3 and sentiment < 0):
+            return "Warning"
             
-        # Check Transaction Success
-        if row.get('Probability of Transaction Success Issues', 0) > thresholds['Transaction Success']['Critical']:
-            return "Critical Risk"
-        if row.get('Probability of Transaction Success Issues', 0) > thresholds['Transaction Success']['Warning']:
-            risk_level = "Warning"
-            
-        # Check Satisfaction
-        if row.get('Probability of Satisfaction Issues', 0) > thresholds['Satisfaction']['Critical']:
-            return "Critical Risk"
-        if row.get('Probability of Satisfaction Issues', 0) > thresholds['Satisfaction']['Warning']:
-            risk_level = "Warning"
-            
-        return risk_level
-
+        # Stable conditions
+        if rating >= 4 and sentiment >= 0:
+            return "Stable"
+        
+        # Default fallback logic for edge cases
+        # Use a weighted scoring approach
+        if rating <= 2.5:
+            return "Critical"
+        elif rating < 3.75:
+            return "Warning"
+        else:
+            return "Stable"
+    
     prob_df['Risk Level'] = prob_df.apply(get_risk_level, axis=1)
+    
+    print("Risk assessment complete.")
     return prob_df
+

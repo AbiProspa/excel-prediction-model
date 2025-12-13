@@ -2,40 +2,60 @@ import pandas as pd
 
 def calculate_probabilities(df):
     """
-    Calculates P(Dimension | Product) for each product and feedback dimension.
+    Groups data by 'Feedback Type' and computes probability scores based on
+    rating distribution and sentiment severity.
     
     Args:
-        df (pd.DataFrame): DataFrame containing 'Product' and 'Feedback Type'.
+        df (pd.DataFrame): DataFrame containing 'Feedback Type', 'Rating', 'Sentiment Score'.
         
     Returns:
-        pd.DataFrame: DataFrame with probabilities.
+        pd.DataFrame: Aggregated DataFrame with probability scores.
     """
     if df.empty:
         return pd.DataFrame()
 
-    # Calculate counts
-    total_counts = df.groupby('Product').size().reset_index(name='Total Feedback Count')
-    dimension_counts = df.groupby(['Product', 'Feedback Type']).size().reset_index(name='Count')
+    print("Aggregating data by Feedback Type...")
     
-    # Merge to get totals for each product
-    merged = pd.merge(dimension_counts, total_counts, on='Product')
+    # 1. Group by Feedback Type
+    # Convert Rating to numeric just in case
+    rating_col = 'Rating (1–5)'
+    df['Rating'] = pd.to_numeric(df[rating_col], errors='coerce')
     
-    # Calculate probability
-    merged['Probability'] = merged['Count'] / merged['Total Feedback Count']
+    # Define aggregation
+    agg_funcs = {
+        'Rating': 'mean',
+        'Sentiment Score': 'mean',
+        'Keywords': lambda x: ' '.join([str(k) for k in x if k]) # Collect all keywords
+    }
     
-    # Pivot to get columns for each dimension
-    pivot_df = merged.pivot(index='Product', columns='Feedback Type', values='Probability').reset_index()
-    pivot_df = pivot_df.fillna(0) # Fill NaNs with 0
+    grouped = df.groupby('Feedback Type').agg(agg_funcs).reset_index()
     
-    # Rename columns for clarity
-    pivot_df.columns.name = None
-    pivot_df = pivot_df.rename(columns={
-        'Availability': 'Probability of Availability Issues',
-        'Transaction Success': 'Probability of Transaction Success Issues',
-        'Satisfaction': 'Probability of Satisfaction Issues'
-    })
+    # Rename columns
+    grouped.rename(columns={
+        'Rating': 'Average Rating',
+        'Sentiment Score': 'Average Sentiment Score' # Renamed to avoid confusion with raw scores
+    }, inplace=True)
     
-    # Add Total Feedback Count back
-    final_df = pd.merge(pivot_df, total_counts, on='Product')
+    # 2. Compute Probability Score
+    # Logic: 
+    # Low Rating -> High Probability of Issue
+    # Negative Sentiment -> High Probability of Issue
     
-    return final_df
+    # Normalize Rating (1-5) to 0-1 (Issue Prob)
+    # 1 -> 1.0, 5 -> 0.0
+    # Formula: (5 - Rating) / 4
+    grouped['Rating Prob'] = (5 - grouped['Average Rating']) / 4
+    
+    # Normalize Sentiment (-1 to 1) to 0-1 (Issue Prob)
+    # -1 -> 1.0, 1 -> 0.0
+    # Formula: (1 - Sentiment) / 2
+    grouped['Sentiment Prob'] = (1 - grouped['Average Sentiment Score']) / 2
+    
+    # Combined Probability Score (Average of both)
+    grouped['Probability Score'] = (grouped['Rating Prob'] + grouped['Sentiment Prob']) / 2
+    
+    # Clip to 0-1 range just in case
+    grouped['Probability Score'] = grouped['Probability Score'].clip(0, 1)
+    
+    print("Probability calculation complete.")
+    return grouped
