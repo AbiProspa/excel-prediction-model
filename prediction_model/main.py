@@ -16,7 +16,7 @@ from export_results import export_to_excel
 # ========================================
 # CENTRALIZED EXCEL CONFIGURATION
 # ========================================
-EXCEL_FILE_PATH = r"C:\Users\abiod\Documents\GitHub\scratch\prediction_model\data\Feedback_Dashboard_Template.xlsx"
+EXCEL_FILE_PATH = r"C:\Users\abiod\Documents\GitHub\scratch\prediction_model\data\Feedback_Dashboard_Template..xlsx"
 INPUT_SHEET = "Feedback_Data"
 OUTPUT_SHEET = "Output"
 
