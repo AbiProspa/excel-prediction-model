@@ -16,7 +16,7 @@ from export_results import export_to_excel
 # ========================================
 # CENTRALIZED EXCEL CONFIGURATION
 # ========================================
-EXCEL_FILE_PATH = r"C:\Users\abiod\Documents\GitHub\scratch\prediction_model\data\Feedback_Dashboard_Template..xlsx"
+EXCEL_FILE_PATH = r"C:\Users\abiod\Documents\GitHub\scratch\prediction_model\data\Feedback_Dashboard_Template.xlsm"
 INPUT_SHEET = "Feedback_Data"
 OUTPUT_SHEET = "Output"
 
@@ -89,7 +89,11 @@ def run_model_from_excel():
     This can be triggered directly from an Excel macro/button.
     """
     print("\n🔵 Model triggered from Excel")
-    run_model(EXCEL_FILE_PATH)
+    wb = xw.Book.caller()
+    # When called from Excel, we don't strictly need to pass the path as main() defaults 
+    # but run_model uses EXCEL_FILE_PATH constant or arg.
+    # Let's pass the caller's full path to be safe/dynamic
+    run_model(wb.fullname)
 
 
 if __name__ == "__main__":
