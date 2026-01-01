@@ -12,6 +12,7 @@ from bayesian_model import calculate_probabilities
 from risk_engine import assess_risk
 from recommendation_engine import generate_recommendations
 from export_results import export_to_excel
+from feedback_loop import log_result
 
 # ========================================
 # CENTRALIZED EXCEL CONFIGURATION
@@ -24,21 +25,15 @@ OUTPUT_SHEET = "Output"
 def run_model(excel_path=EXCEL_FILE_PATH):
     """
     Main model pipeline that reads from Feedback_Data and writes to Output.
-    
-    Args:
-        excel_path (str): Path to the Excel file containing input and output sheets.
     """
     print("="*60)
-    print("PREDICTION & RECOMMENDATION MODEL")
+    print("HYBRID ADAPTIVE AI MODEL (BERT + BAYESIAN + LEARNING)")
     print("="*60)
     print(f"Excel File: {excel_path}")
-    print(f"Input Sheet: {INPUT_SHEET}")
-    print(f"Output Sheet: {OUTPUT_SHEET}")
-    print("="*60)
     
     try:
-        # 1. Load Data from Feedback_Data sheet
-        print("\n[1/6] Loading data...")
+        # 1. Load Data
+        print("\n[1/7] Loading data...")
         df = load_feedback_data(excel_path, INPUT_SHEET)
         
         if df.empty:
@@ -47,28 +42,43 @@ def run_model(excel_path=EXCEL_FILE_PATH):
         
         print(f"✓ Loaded {len(df)} records")
 
-        # 2. NLP Analysis
-        print("\n[2/6] Running NLP Analysis...")
+        # 2. NLP Analysis (DistilBERT)
+        print("\n[2/7] Running NLP Analysis (BERT)...")
         df_nlp = analyze_comments(df)
         print(f"✓ Sentiment analysis complete")
         
-        # 3. Bayesian Probability Model
-        print("\n[3/6] Calculating Probabilities...")
+        # 3. Bayesian Probability Model (Adaptive Weights)
+        print("\n[3/7] Calculating Probabilities (Adaptive)...")
         prob_df = calculate_probabilities(df_nlp)
         print(f"✓ Probability scores computed for {len(prob_df)} feedback types")
         
         # 4. Risk Scoring
-        print("\n[4/6] Assessing Risk...")
+        print("\n[4/7] Assessing Risk...")
         risk_df = assess_risk(prob_df)
         print(f"✓ Risk levels assigned")
         
         # 5. Recommendation Engine
-        print("\n[5/6] Generating Recommendations...")
+        print("\n[5/7] Generating Recommendations...")
         final_df = generate_recommendations(risk_df)
         print(f"✓ Recommendations generated")
         
-        # 6. Export Results to Output sheet
-        print("\n[6/6] Exporting Results...")
+        # 6. History Logging (Learning Loop)
+        print("\n[6/7] Logging to History (Feedback Loop)...")
+        for _, row in final_df.iterrows():
+            log_data = {
+                "feedback_type": row.get('Feedback Type'),
+                "rating": row.get('Average Rating'),
+                "sentiment_prob": row.get('Average Sentiment Score'), # This is the neg prob now
+                "final_prob": row.get('Probability Score'),
+                "risk": row.get('Risk Level'),
+                "action": row.get('Recommendation'),
+                "outcome": "Pending" # Placeholder for future outcome
+            }
+            log_result(log_data)
+        print(f"✓ {len(final_df)} records logged to history.csv")
+        
+        # 7. Export Results
+        print("\n[7/7] Exporting Results...")
         export_to_excel(final_df, excel_path, OUTPUT_SHEET)
         
         print("\n" + "="*60)
@@ -85,38 +95,23 @@ def run_model(excel_path=EXCEL_FILE_PATH):
 @xw.sub
 def run_model_from_excel():
     """
-    Excel-callable function using xlwings @xw.sub decorator.
-    This can be triggered directly from an Excel macro/button.
+    Excel-callable function.
     """
     print("\n🔵 Model triggered from Excel")
     wb = xw.Book.caller()
-    # When called from Excel, we don't strictly need to pass the path as main() defaults 
-    # but run_model uses EXCEL_FILE_PATH constant or arg.
-    # Let's pass the caller's full path to be safe/dynamic
     run_model(wb.fullname)
 
 
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(
-        description='Excel-Connected Prediction & Recommendation Model',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=f"""
-Default Configuration:
-  Excel File: {EXCEL_FILE_PATH}
-  Input Sheet: {INPUT_SHEET}
-  Output Sheet: {OUTPUT_SHEET}
-        """
-    )
+    parser = argparse.ArgumentParser(description='Adaptive Hybrid AI Model')
     parser.add_argument(
         '--excel-path', 
         default=EXCEL_FILE_PATH,
-        help='Path to Excel file (default: configured path)'
+        help='Path to Excel file'
     )
     
     args = parser.parse_args()
-    
-    # Run the model
     run_model(args.excel_path)
 

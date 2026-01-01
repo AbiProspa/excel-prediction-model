@@ -1,5 +1,8 @@
 pandas
-openpyxl
-xlwings
 textblob
+xlwings
+openpyxl
 watchdog
+torch
+transformers
+scikit-learn

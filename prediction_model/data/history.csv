@@ -1,0 +1,6 @@
+date,feedback_type,rating,sentiment_prob,final_prob,risk,action,outcome
+2026-01-01T11:15:45.445828,ATM,5.0,0.0002,0.0001,Stable,ATM network operating normally. Continue regular maintenance schedule.,Pending
+2026-01-01T11:15:45.447218,App,5.0,0.9814,0.4907,Stable,Continue current monitoring practices. Maintain quality standards.,Pending
+2026-01-01T11:15:45.448113,Loan Process,5.0,0.9995,0.49975,Stable,Continue current monitoring practices. Maintain quality standards.,Pending
+2026-01-01T11:15:45.448686,Online Banking,5.0,0.9997,0.49985,Stable,Online banking service running smoothly. Monitor for security threats.,Pending
+2026-01-01T11:15:45.449249,Service,5.0,0.0002,0.0001,Stable,Continue current monitoring practices. Maintain quality standards.,Pending

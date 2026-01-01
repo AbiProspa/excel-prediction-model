@@ -1,9 +1,10 @@
 import pandas as pd
+from learning_engine import load_weights
 
 def calculate_probabilities(df):
     """
     Groups data by 'Feedback Type' and computes probability scores based on
-    rating distribution and sentiment severity.
+    rating distribution and sentiment severity using ADAPTIVE WEIGHTS.
     
     Args:
         df (pd.DataFrame): DataFrame containing 'Feedback Type', 'Rating', 'Sentiment Score'.
@@ -30,29 +31,39 @@ def calculate_probabilities(df):
     
     grouped = df.groupby('Feedback Type').agg(agg_funcs).reset_index()
     
-    # Rename columns
+    # Rename columns to match Risk Engine expectations
     grouped.rename(columns={
         'Rating': 'Average Rating',
-        'Sentiment Score': 'Average Sentiment Score' # Renamed to avoid confusion with raw scores
+        'Sentiment Score': 'Average Sentiment Score'
     }, inplace=True)
     
     # 2. Compute Probability Score
-    # Logic: 
-    # Low Rating -> High Probability of Issue
-    # Negative Sentiment -> High Probability of Issue
+    weights = load_weights()
+    print(f"Using Adaptive Weights: {weights}")
     
     # Normalize Rating (1-5) to 0-1 (Issue Prob)
     # 1 -> 1.0, 5 -> 0.0
-    # Formula: (5 - Rating) / 4
     grouped['Rating Prob'] = (5 - grouped['Average Rating']) / 4
     
-    # Normalize Sentiment (-1 to 1) to 0-1 (Issue Prob)
-    # -1 -> 1.0, 1 -> 0.0
-    # Formula: (1 - Sentiment) / 2
-    grouped['Sentiment Prob'] = (1 - grouped['Average Sentiment Score']) / 2
+    # Normalize Sentiment from BERT (0.0 - 1.0 negative prob) to 0-1 (Issue Prob)
+    # BERT output is already "Negative Probability", so logic changes from existing code!
+    # Validating BERT output nature: `get_negative_probability` returns 0.0 to 1.0 (Prob of Negative).
+    # So 0.9 = Very Negative = High Issue Prob.
+    # Existing code assumed Sentiment Score was -1 to 1 (Polarity).
+    # New code uses 'Average Sentiment Score' which is mean(BERT Negative Prob).
+    # So 'Average Sentiment Score' is ALREADY the 'Sentiment Prob'.
+    grouped['Sentiment Prob'] = grouped['Average Sentiment Score']
     
-    # Combined Probability Score (Average of both)
-    grouped['Probability Score'] = (grouped['Rating Prob'] + grouped['Sentiment Prob']) / 2
+    # Combined Probability Score (Weighted Average)
+    # Final = w1 * rating_prob + w2 * sentiment_prob
+    if 'rating_weight' in weights and 'sentiment_weight' in weights:
+        grouped['Probability Score'] = (
+            weights['rating_weight'] * grouped['Rating Prob'] +
+            weights['sentiment_weight'] * grouped['Sentiment Prob']
+        )
+    else:
+        # Fallback to simple average
+        grouped['Probability Score'] = (grouped['Rating Prob'] + grouped['Sentiment Prob']) / 2
     
     # Clip to 0-1 range just in case
     grouped['Probability Score'] = grouped['Probability Score'].clip(0, 1)
