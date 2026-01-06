@@ -23,10 +23,20 @@ def calculate_probabilities(df):
     df['Rating'] = pd.to_numeric(df[rating_col], errors='coerce')
     
     # Define aggregation
+    # Define aggregation help
+    def summarize_keywords(series):
+        # Join all text
+        all_text = ' '.join([str(k) for k in series if k])
+        # Split by comma or space
+        words = [w.strip() for w in all_text.replace(',', ' ').split() if w.strip()]
+        # Unique only
+        unique_words = sorted(list(set(words)))
+        return ", ".join(unique_words)
+
     agg_funcs = {
         'Rating': 'mean',
         'Sentiment Score': 'mean',
-        'Keywords': lambda x: ' '.join([str(k) for k in x if k]) # Collect all keywords
+        'Keywords': summarize_keywords
     }
     
     grouped = df.groupby('Feedback Type').agg(agg_funcs).reset_index()

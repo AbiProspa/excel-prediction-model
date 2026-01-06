@@ -18,33 +18,29 @@ def assess_risk(prob_df):
     def get_risk_level(row):
         """
         Determine risk level based on:
-        - Critical: Avg Rating ≤ 2 AND Strongly negative sentiment
-        - Warning: Avg Rating ≈ 3 OR Mild negative sentiment
-        - Stable: Avg Rating ≥ 4 AND Neutral/Positive sentiment
+        - Critical: Avg Rating <= 2 OR Very High Negative Sentiment (> 0.7)
+        - Warning: Avg Rating < 4 OR Moderate Negative Sentiment (> 0.4)
+        - Stable: High Rating (>= 4) AND Low Negative Sentiment (<= 0.4)
         """
         rating = row.get('Average Rating', 5)
-        sentiment = row.get('Average Sentiment Score', 0)
+        # BERT Sentiment is "Probability of Negativity" (0.0 = Positive/Neutral, 1.0 = Highly Negative)
+        neg_prob = row.get('Average Sentiment Score', 0)
         
-        # Critical conditions
-        if rating <= 2 and sentiment < -0.3:
+        # 1. Critical Logic
+        # - Extremely low rating (1-2 stars)
+        # - OR Significant conflict: OK rating (3) but Terrible Sentiment (0.8+)
+        if rating <= 2.5 or (rating <= 3.5 and neg_prob > 0.8):
             return "Critical"
         
-        # Warning conditions
-        if (rating > 2 and rating < 3.5) or (sentiment >= -0.3 and sentiment < 0):
+        # 2. Warning Logic
+        # - Mediocre rating (3 stars)
+        # - OR Mildly negative sentiment (0.4 - 0.7) even with good stars
+        if rating < 4.0 or neg_prob > 0.4:
             return "Warning"
             
-        # Stable conditions
-        if rating >= 4 and sentiment >= 0:
-            return "Stable"
-        
-        # Default fallback logic for edge cases
-        # Use a weighted scoring approach
-        if rating <= 2.5:
-            return "Critical"
-        elif rating < 3.75:
-            return "Warning"
-        else:
-            return "Stable"
+        # 3. Stable Logic
+        # - Good rating (4-5) AND Low negative sentiment (< 0.4)
+        return "Stable"
     
     prob_df['Risk Level'] = prob_df.apply(get_risk_level, axis=1)
     

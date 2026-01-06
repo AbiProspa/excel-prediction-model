@@ -49,17 +49,26 @@ def export_to_excel(df, excel_path, sheet_name='Output'):
             raise FileNotFoundError(f"Excel file not found: {excel_path}")
 
         # Open Excel
-        # Try to reuse existing app if running from Excel
+        # Robust logic to find or open workbook
+        target_wb = None
+        app = None
+        
+        # 1. Check if workbook is already open in any active Excel instance
         try:
-            app = xw.apps.active
-            if app is None:
-                raise Exception("No active app")
-            wb = app.books.active
-            if wb is None or wb.fullname.lower() != excel_path.lower():
-                # Different workbook, open the target one
-                wb = app.books.open(excel_path)
-        except:
-            # Not running from Excel, create new instance
+            for book in xw.books:
+                if book.fullname.lower() == excel_path.lower():
+                    target_wb = book
+                    app = book.app
+                    break
+        except Exception:
+            pass # Ignore errors listing books
+            
+        # 2. If not found, open it
+        if target_wb:
+            wb = target_wb
+            print("✓ Connected to already open Excel workbook.")
+        else:
+            print("Opening Excel file...")
             app = xw.App(visible=False)
             wb = app.books.open(excel_path)
         
@@ -84,12 +93,25 @@ def export_to_excel(df, excel_path, sheet_name='Output'):
         sheet.autofit('c')
         
         # Save and close
-        wb.save()
+        try:
+            wb.save()
+            print("✓ File saved successfully.")
+        except Exception as e:
+            print(f"⚠️ WARNING: Could not save the Excel file automatically.")
+            print(f"   Reason: {e}")
+            print(f"   ACTION REQUIRED: Please go to your open Excel window and click 'Save' manually.")
+            print(f"   (Data has been written to the sheet, so you won't lose it if you save now.)")
         
         # Only quit if we created the app (not called from Excel)
         if app != xw.apps.active:
-            wb.close()
-            app.quit()
+            try:
+                # If we can't save, we probably shouldn't close? 
+                # Actually if we attached to an existing app (target_wb), we absolutely should NOT close it.
+                if not target_wb: 
+                    wb.close()
+                    app.quit()
+            except:
+                pass
         
         print(f"✓ Successfully exported {len(output_df)} rows to '{sheet_name}' sheet.")
         
