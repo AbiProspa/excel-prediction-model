@@ -1,14 +1,16 @@
-# Prediction Model Architecture & How It Works
+# Prediction Model Architecture (Updated)
 
 ## System Overview
 
-The prediction model is a **6-stage pipeline** that transforms customer feedback into actionable business insights using NLP, Bayesian statistics, and risk assessment algorithms.
+The prediction model is a **Hybrid Adaptive AI** pipeline that transforms customer feedback into actionable business insights using Deep Learning (BERT), Bayesian Statistics with Adaptive Weights, and a Feedback Loop for continuous improvement.
 
 ```
-Excel Input → NLP Analysis → Bayesian Model → Risk Scoring → Recommendations → Excel Output
+Excel Input → BERT NLP → Adaptive Bayesian Model → Risk Scoring → Recommendations → Excel Output
+      ^                                                                      |
+      |__________________________Feedback Loop_______________________________|
 ```
 
-##  Data Flow Architecture
+## Data Flow Architecture
 
 ### Input Data Structure
 **Source**: `Feedback_Dashboard_Template.xlsm` → `Feedback_Data` sheet
@@ -26,217 +28,75 @@ Excel Input → NLP Analysis → Bayesian Model → Risk Scoring → Recommendat
 |--------|-------------|
 | Feedback Type | Original category |
 | Average Rating | Mean rating per category |
-| Average Sentiment Score | NLP-derived sentiment (-1 to +1) |
-| Probability Score | Bayesian risk probability (0 to 1) |
+| Average Sentiment Score | **Probability of Negativity** (0.0 = Positive, 1.0 = Negative) |
+| Probability Score | Combined Issue Probability (0 to 1) |
 | Risk Level | Critical/Warning/Stable classification |
-| Top Issue Summary | Key problems identified |
+| Top Issue Summary | Key keywords identified |
 | Recommendation | Actionable business advice |
 
 ## 🔧 Core Components
 
-### 1. Data Loading Engine (`load_data.py`)
-```python
-# Reads Excel using pandas with error handling
-df = pd.read_excel(excel_path, sheet_name=sheet_name)
-```
-- **Purpose**: Safely extract feedback data from Excel
-- **Error Handling**: Missing files, empty sheets, column validation
-- **Output**: Clean pandas DataFrame
+### 1. Data Loading Engine
+- **Purpose**: Safely extract feedback data from Excel using `pandas` and `xlwings`.
+- **Features**: Error handling for missing files or empty sheets.
 
 ### 2. NLP Analysis Engine (`nlp_engine.py`)
 
-#### Sentiment Analysis
-Uses **TextBlob** library for polarity scoring:
-```python
-sentiment_score = TextBlob(comment).sentiment.polarity
-# Returns: -1 (very negative) to +1 (very positive)
-```
+#### Deep Learning Model (BERT)
+Uses **DistilBERT** (via `bert_sentiment.py`) for advanced sentiment understanding.
+- **Input**: Raw text comment
+- **Output**: **Negative Probability** (0.0 to 1.0)
+    - 0.0 - 0.3: Positive/Neutral
+    - 0.7 - 1.0: Highly Negative
+- **Advantage**: Understands context, sarcasm, and nuance better than simple keyword matching.
 
 #### Keyword Extraction
-Pattern matching against predefined banking issue triggers:
-```python
-trigger_words = ["network down", "failed", "slow", "crash", "timeout", "rude", "wait"]
-```
-- **Algorithm**: Simple string matching in lowercase text
-- **Output**: Comma-separated list of detected issues
+Extracts specific trigger words (e.g., "network", "timeout", "refund") to identify the root cause of issues.
 
 ### 3. Bayesian Probability Model (`bayesian_model.py`)
 
-#### Mathematical Foundation
-Converts ratings and sentiment into issue probability using inverse relationships:
-
-**Rating Probability**:
+#### Adaptive Weights
+Unlike static models, this engine uses **Adaptive Weights** that can be tuned over time.
+```python
+Issue_Prob = (W_rating * Rating_Prob) + (W_sentiment * Sentiment_Prob)
 ```
-P(issue|rating) = (5 - rating) / 4
-```
-- Rating 1 → Probability 1.0 (100% chance of issue)
-- Rating 5 → Probability 0.0 (0% chance of issue)
-
-**Sentiment Probability**:
-```
-P(issue|sentiment) = (1 - sentiment) / 2
-```
-- Sentiment -1 → Probability 1.0 (very negative = high issue probability)
-- Sentiment +1 → Probability 0.0 (very positive = low issue probability)
-
-**Combined Score**:
-```
-Final Probability = (Rating Prob + Sentiment Prob) / 2
-```
-
-#### Aggregation Logic
-Groups feedback by type and calculates:
-- Mean rating per category
-- Mean sentiment per category
-- Combined probability score per category
+- **Rating Prob**: Normalized (5★ → 0.0, 1★ → 1.0)
+- **Sentiment Prob**: Direct output from BERT (0.0 → 1.0)
+- **Weights**: Loaded from `weights.json`, allowing the model's sensitivity to rating vs. text to be adjusted.
 
 ### 4. Risk Assessment Engine (`risk_engine.py`)
 
-#### Risk Classification Algorithm
-Uses **dual-threshold logic** combining rating and sentiment:
+#### Dual-Threshold Logic
+Classifies risk logic based on both structural (Rating) and unstructured (Text) signals:
 
-```python
-def classify_risk(avg_rating, avg_sentiment):
-    if avg_rating <= 2 and avg_sentiment < -0.3:
-        return "Critical"
-    elif (2 < avg_rating < 3.5) or (-0.3 <= avg_sentiment < 0):
-        return "Warning"
-    elif avg_rating >= 4 and avg_sentiment >= 0:
-        return "Stable"
-    else:
-        return fallback_logic(avg_rating)
-```
+| Risk Level | Logic | Meaning |
+|------------|-------|---------|
+| **Critical** | Rating ≤ 2.5 **OR** (Rating ≤ 3.5 & NegProb > 0.8) | Severe failure or mismatch between rating and comment. |
+| **Warning** | Rating < 4.0 **OR** NegProb > 0.4 | Suboptimal performance or underlying complaints. |
+| **Stable** | Rating ≥ 4.0 **AND** NegProb ≤ 0.4 | Healthy system state. |
 
-#### Risk Thresholds
-| Risk Level | Rating Condition | Sentiment Condition |
-|------------|------------------|---------------------|
-| **Critical** | ≤ 2.0 | < -0.3 (strongly negative) |
-| **Warning** | 2.0 - 3.5 | -0.3 to 0.0 (mildly negative) |
-| **Stable** | ≥ 4.0 | ≥ 0.0 (neutral/positive) |
+### 5. Recommendation Engine
+Generates specific, actionable advice based on the calculated Risk Level and Feedback Type.
 
-### 5. Recommendation Engine (`recommendation_engine.py`)
-
-#### Business Logic Matrix
-Generates specific recommendations based on **Feedback Type × Risk Level**:
-
-```python
-recommendations = {
-    "ATM": {
-        "Critical": "Immediate maintenance required for ATM network...",
-        "Warning": "Increase ATM cash replenishment frequency...",
-        "Stable": "ATM network operating normally..."
-    },
-    # ... other categories
-}
-```
-
-#### Top Issue Extraction
-Analyzes keyword frequency to identify primary concerns:
-```python
-def extract_top_issues(keywords):
-    # Count keyword frequency
-    # Return top 3 most mentioned issues
-```
-
-### 6. Excel Export Engine (`export_results.py`)
-- **Technology**: xlwings for live Excel integration
-- **Features**: Overwrites existing data, preserves formatting
-- **Real-time**: Can be triggered from Excel macros
-
-## Algorithm Details
-
-### Bayesian Inference Logic
-The model applies **naive Bayes principles** assuming:
-1. **Independence**: Rating and sentiment are independent predictors
-2. **Prior Knowledge**: Banking domain expertise encoded in thresholds
-3. **Posterior Calculation**: Combined probability represents likelihood of requiring intervention
-
-### Statistical Aggregation
-For each feedback category:
-```python
-# Group by feedback type
-grouped_data = df.groupby('Feedback Type').agg({
-    'Rating': 'mean',
-    'Sentiment Score': 'mean',
-    'Keywords': lambda x: ' '.join(x)
-})
-```
-
-### Risk Scoring Mathematics
-Uses **weighted scoring** for edge cases:
-```python
-if rating <= 2.5:
-    risk = "Critical"
-elif rating < 3.75:
-    risk = "Warning"
-else:
-    risk = "Stable"
-```
+### 6. Feedback Loop & Learning (`feedback_loop.py`)
+- **Action**: Logs every prediction, rating, and outcome to `history.csv`.
+- **Purpose**: Enables future retraining of weights. If the model flags "Critical" but the issue was minor, the weights can be adjusted based on this history.
 
 ## Execution Pipeline
 
-### Sequential Processing
-1. **Load** → Validate Excel data structure
-2. **Analyze** → Extract sentiment + keywords from comments
-3. **Calculate** → Apply Bayesian probability formulas
-4. **Assess** → Classify risk levels using thresholds
-5. **Recommend** → Generate business-specific advice
-6. **Export** → Write results back to Excel
+1.  **Load**: Read `Feedback_Data`.
+2.  **Analyze (BERT)**: Compute text negativity probability.
+3.  **calculate**: Apply Adaptive Bayesian weights.
+4.  **Assess**: Determine Risk Level (Critical/Warning/Stable).
+5.  **Recommend**: Generate business advice.
+6.  **Log**: Save input/output to `history.csv` for learning.
+7.  **Export**: Write results to `Output` sheet in Excel.
 
-### Error Handling Strategy
-- **Missing Data**: Default values (rating=5, sentiment=0)
-- **Invalid Excel**: Graceful failure with error messages
-- **Empty Comments**: Skip NLP analysis, use rating only
-- **Unknown Categories**: Apply generic recommendations
+## Summary of Improvements (vs Legacy)
 
-## Model Performance Characteristics
-
-### Strengths
-- **Real-time Processing**: Handles 1000+ records in seconds
-- **Business-Focused**: Outputs directly actionable recommendations
-- **Excel Integration**: Seamless workflow for business users
-- **Interpretable**: Clear mathematical relationships
-
-### Limitations
-- **Simple NLP**: Basic keyword matching (not deep learning)
-- **Static Thresholds**: Risk levels use fixed cutoffs
-- **No Learning**: Model doesn't adapt from historical performance
-- **English Only**: TextBlob optimized for English text
-
-## Business Value Proposition
-
-### Automated Insights
-Converts raw feedback into prioritized action items:
-- **Critical Issues**: Immediate escalation required
-- **Warning Trends**: Proactive intervention opportunities  
-- **Stable Areas**: Confirmation of effective processes
-
-### Scalability
-Processes large volumes of feedback without manual analysis:
-- **Time Savings**: Minutes instead of hours for analysis
-- **Consistency**: Standardized risk assessment criteria
-- **Audit Trail**: Mathematical basis for all decisions
-
-## Technical Integration
-
-### Excel Connectivity
-```python
-@xw.sub
-def run_model_from_excel():
-    # Can be triggered directly from Excel VBA
-    wb = xw.Book.caller()
-    run_model(wb.fullname)
-```
-
-### Command Line Interface
-```bash
-python main.py --excel-path "custom_file.xlsx"
-```
-
-### Real-time Monitoring
-```bash
-# Watches for Excel file changes and auto-runs model
-python realtime_monitor.py
-```
-
-This architecture provides a robust, scalable solution for transforming customer feedback into actionable business intelligence while maintaining simplicity and interpretability for business stakeholders.
+| Feature | Legacy System | **Current System** |
+|---------|---------------|--------------------|
+| **NLP** | TextBlob (Simple Polarity) | **DistilBERT (Deep Learning)** |
+| **Weights** | Fixed (50/50) | **Adaptive (Loadable)** |
+| **Learning** | None | **Feedback Loop (History Log)** |
+| **Risk Logic**| Static Thresholds | **Context-Aware Thresholds** |

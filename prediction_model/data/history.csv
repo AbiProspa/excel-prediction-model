@@ -170,3 +170,28 @@ date,feedback_type,rating,sentiment_prob,final_prob,risk,action,outcome
 2026-01-02T10:10:19.540022,Loan Process,2.5,0.504275,0.5646375,Critical,Immediate investigation required. Escalate to senior management and deploy dedicated resources.,Pending
 2026-01-02T10:10:19.540783,Online Banking,3.0,0.493975,0.4969875,Warning,Improve online banking user experience. Address login and navigation issues.,Pending
 2026-01-02T10:10:19.541445,Service,3.0,0.589125,0.5445625000000001,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
+2026-01-06T09:32:35.681703,ATM,3.15,0.6275746875,0.54503734375,Warning,Increase ATM cash replenishment frequency. Schedule preventive maintenance.,Pending
+2026-01-06T09:32:35.683174,App,3.0678466076696167,0.5127985250737462,0.49791843657817103,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
+2026-01-06T09:32:35.684019,Loan Process,3.0972222222222223,0.4721791666666666,0.4739368055555555,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
+2026-01-06T09:32:35.684736,Online Banking,3.194888178913738,0.4734661341853035,0.46237204472843446,Warning,Improve online banking user experience. Address login and navigation issues.,Pending
+2026-01-06T09:32:35.685700,Service,3.2288401253918497,0.48590062695924763,0.4643452978056426,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
+2026-01-06T09:33:04.759442,ATM,3.15,0.6275746875,0.54503734375,Warning,Increase ATM cash replenishment frequency. Schedule preventive maintenance.,Pending
+2026-01-06T09:33:04.761207,App,3.0678466076696167,0.5127985250737462,0.49791843657817103,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
+2026-01-06T09:33:04.762051,Loan Process,3.0972222222222223,0.4721791666666666,0.4739368055555555,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
+2026-01-06T09:33:04.762724,Online Banking,3.194888178913738,0.4734661341853035,0.46237204472843446,Warning,Improve online banking user experience. Address login and navigation issues.,Pending
+2026-01-06T09:33:04.763793,Service,3.2288401253918497,0.48590062695924763,0.4643452978056426,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
+2026-01-06T09:53:49.500584,ATM,3.15,0.6275746875,0.54503734375,Warning,Increase ATM cash replenishment frequency. Schedule preventive maintenance.,Pending
+2026-01-06T09:53:49.502389,App,3.0678466076696167,0.5127985250737462,0.49791843657817103,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
+2026-01-06T09:53:49.503456,Loan Process,3.0972222222222223,0.4721791666666666,0.4739368055555555,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
+2026-01-06T09:53:49.504001,Online Banking,3.194888178913738,0.4734661341853035,0.46237204472843446,Warning,Improve online banking user experience. Address login and navigation issues.,Pending
+2026-01-06T09:53:49.504679,Service,3.2288401253918497,0.48590062695924763,0.4643452978056426,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
+2026-01-06T09:58:22.971040,ATM,nan,0.7264594594594594,nan,Warning,Increase ATM cash replenishment frequency. Schedule preventive maintenance.,Pending
+2026-01-06T09:58:22.972446,App,2.826923076923077,0.53675,0.5400096153846153,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
+2026-01-06T09:58:22.973112,Loan Process,3.2711864406779663,0.3430796610169492,0.3876415254237288,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
+2026-01-06T09:58:22.973674,Online Banking,3.2222222222222223,0.3551888888888889,0.39981666666666665,Warning,Improve online banking user experience. Address login and navigation issues.,Pending
+2026-01-06T09:58:22.974181,Service,nan,0.4161022222222222,nan,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
+2026-01-06T09:59:11.521341,ATM,nan,0.7264594594594594,nan,Warning,Increase ATM cash replenishment frequency. Schedule preventive maintenance.,Pending
+2026-01-06T09:59:11.522359,App,2.826923076923077,0.53675,0.5400096153846153,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
+2026-01-06T09:59:11.523103,Loan Process,3.2711864406779663,0.3430796610169492,0.3876415254237288,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
+2026-01-06T09:59:11.523732,Online Banking,3.2222222222222223,0.3551888888888889,0.39981666666666665,Warning,Improve online banking user experience. Address login and navigation issues.,Pending
+2026-01-06T09:59:11.524658,Service,nan,0.4161022222222222,nan,Warning,Improve follow-up process and monitor trends closely. Schedule review within 2 weeks.,Pending
