@@ -51,18 +51,33 @@ def calculate_probabilities(df):
     weights = load_weights()
     print(f"Using Adaptive Weights: {weights}")
     
+    # Keyword Priors: High-impact words boost the Sentiment Prob
+    KEYWORD_PRIORS = {
+        "crash": 0.95,
+        "failed": 0.9,
+        "broken": 0.9,
+        "fraud": 0.95,
+        "down": 0.85,
+        "terrible": 0.85,
+        "error": 0.8
+    }
+
+    def boost_sentiment(row):
+        base_prob = row['Average Sentiment Score']
+        keywords = str(row.get('Keywords', '')).lower().split(', ')
+        
+        boosts = [KEYWORD_PRIORS[k] for k in keywords if k in KEYWORD_PRIORS]
+        if boosts:
+            # If high-risk keywords exist, we lean heavily towards their prior
+            return max(base_prob, max(boosts))
+        return base_prob
+
     # Normalize Rating (1-5) to 0-1 (Issue Prob)
     # 1 -> 1.0, 5 -> 0.0
     grouped['Rating Prob'] = (5 - grouped['Average Rating']) / 4
     
-    # Normalize Sentiment from BERT (0.0 - 1.0 negative prob) to 0-1 (Issue Prob)
-    # BERT output is already "Negative Probability", so logic changes from existing code!
-    # Validating BERT output nature: `get_negative_probability` returns 0.0 to 1.0 (Prob of Negative).
-    # So 0.9 = Very Negative = High Issue Prob.
-    # Existing code assumed Sentiment Score was -1 to 1 (Polarity).
-    # New code uses 'Average Sentiment Score' which is mean(BERT Negative Prob).
-    # So 'Average Sentiment Score' is ALREADY the 'Sentiment Prob'.
-    grouped['Sentiment Prob'] = grouped['Average Sentiment Score']
+    # Calculate Boosted Sentiment Prob
+    grouped['Sentiment Prob'] = grouped.apply(boost_sentiment, axis=1)
     
     # Combined Probability Score (Weighted Average)
     # Final = w1 * rating_prob + w2 * sentiment_prob

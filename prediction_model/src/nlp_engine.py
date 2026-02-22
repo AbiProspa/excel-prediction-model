@@ -3,7 +3,8 @@ from bert_sentiment import get_negative_probability
 TRIGGER_WORDS = [
     "network", "failed", "slow", "crash",
     "timeout", "rude", "delay", "error",
-    "cannot", "issue", "problem", "wait", "charged", "refund", "login"
+    "cannot", "issue", "problem", "wait", "charged", "refund", "login",
+    "broken", "horrible", "fraud", "stuck", "useless", "down", "terrible"
 ]
 
 def extract_keywords(text):
