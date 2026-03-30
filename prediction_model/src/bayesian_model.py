@@ -19,7 +19,7 @@ def calculate_probabilities(df):
     
     # 1. Group by Feedback Type
     # Convert Rating to numeric just in case
-    rating_col = 'Rating (1–5)'
+    rating_col = 'Rating'
     df['Rating'] = pd.to_numeric(df[rating_col], errors='coerce')
     
     # Define aggregation

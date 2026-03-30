@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import os
 import sys
 
@@ -26,20 +26,37 @@ def evaluate_predictions(actual_values, predicted_values):
     # Calculate metrics using scikit-learn
     mae = mean_absolute_error(actual_values, predicted_values)
     mse = mean_squared_error(actual_values, predicted_values)
+    r2 = r2_score(actual_values, predicted_values)
     
+    # Calculate BIC (Bayesian Information Criterion)
+    # BIC = n * log(MSE) + k * log(n)
+    # n = number of observations, k = number of parameters (2 in our case: rating and sentiment weights)
+    n = len(actual_values)
+    k = 2
+    if mse > 0:
+        bic = n * np.log(mse) + k * np.log(n)
+    else:
+        bic = -np.inf # Perfect fit
+
     # Display the results
     print("\n--- MODEL EVALUATION RESULTS ---")
     print(f"Mean Absolute Error (MAE): {mae:.4f}")
     print(f"Mean Squared Error (MSE):  {mse:.4f}")
+    print(f"R-squared (R2):            {r2:.4f}")
+    print(f"Bayesian Info Crit (BIC):  {bic:.4f}")
     print("--------------------------------\n")
     
-    return {"MAE": mae, "MSE": mse}
+    return {"MAE": mae, "MSE": mse, "R2": r2, "BIC": bic}
 
-def load_and_evaluate(file_path=HISTORY_FILE):
+def load_and_evaluate(file_path=None):
     """
     Loads history data and runs evaluation.
     Only considers rows where 'outcome' is a valid number (0.0 - 1.0).
     """
+    # Use provided path or default to global HISTORY_FILE
+    if file_path is None:
+        file_path = HISTORY_FILE
+        
     print(f"Loading history from: {file_path}")
     
     if not os.path.exists(file_path):

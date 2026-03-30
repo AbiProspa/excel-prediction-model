@@ -49,3 +49,6 @@ date,feedback_type,rating,sentiment_prob,final_prob,risk,action,outcome
 2026-02-01T21:40:32.960432,Online Banking,4.13,0.1321,0.1742,Stable,Standard monitoring. No immediate action.,0.0
 2026-01-27T21:40:32.960432,ATM,1.58,0.7767,0.8155,Critical,Immediate investigation required. High risk detected.,1.0
 2026-02-15T21:40:32.960432,Loan Process,1.62,0.8482,0.8462,Critical,Immediate investigation required. High risk detected.,1.0
+2026-03-30T08:44:37.172325,Availability,1.5,0.9997,0.93735,Critical,Immediate investigation required. Escalate to senior management and deploy dedicated resources.,Pending
+2026-03-30T08:44:37.173116,Satisfaction,5.0,0.0002,0.0001,Stable,Continue current monitoring practices. Maintain quality standards.,Pending
+2026-03-30T08:44:37.173760,Transaction Success,3.5,0.99975,0.6873750000000001,Critical,Immediate investigation required. Escalate to senior management and deploy dedicated resources.,Pending

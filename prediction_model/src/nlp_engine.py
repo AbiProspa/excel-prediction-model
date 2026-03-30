@@ -31,10 +31,10 @@ def analyze_comments(df):
     Wrapper for DataFrame processing to maintain compatibility with existing flow,
     though main.py will likely switch to row-by-row.
     """
-    if df.empty or 'Comments' not in df.columns:
+    if df.empty or 'Comment' not in df.columns:
         return df
 
-    results = df['Comments'].apply(analyze_comment)
+    results = df['Comment'].apply(analyze_comment)
     
     # Expand dictionary results into columns
     df['Sentiment Score'] = results.apply(lambda x: x['sentiment_prob'])
