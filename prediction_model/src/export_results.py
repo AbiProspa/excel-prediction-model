@@ -76,12 +76,20 @@ def export_to_excel(df, excel_path, sheet_name='Output'):
         sheet_names = [sheet.name for sheet in wb.sheets]
         if sheet_name in sheet_names:
             sheet = wb.sheets[sheet_name]
-            sheet.clear_contents()  # Clear existing data but keep the sheet
+            sheet.range('A:I').clear()  # Clear table area specifically (A to I just in case it spilled)
         else:
             sheet = wb.sheets.add(sheet_name)
             
-        # Write data starting at A1
-        sheet.range('A1').value = output_df
+        # Round decimals to make it look clean like the new UI
+        for col in ['Average Rating', 'Sentiment Score']:
+            if col in output_df.columns:
+                try:
+                    output_df[col] = pd.to_numeric(output_df[col]).round(3)
+                except:
+                    pass
+            
+        # Write data starting at A1 without the messy pandas index!
+        sheet.range('A1').options(index=False).value = output_df
         
         # Format headers (row 1) as bold
         header_range = sheet.range('A1').expand('right')

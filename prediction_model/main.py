@@ -102,8 +102,8 @@ def run_model(excel_path=EXCEL_FILE_PATH):
             }
             
             for product, layout in layout_map.items():
-                # Filter results for this product
-                prod_data = final_df[final_df['Product'] == product]
+                # Filter results for this product (products are stored in Feedback Type now)
+                prod_data = final_df[final_df['Feedback Type'] == product]
                 if not prod_data.empty:
                     row = prod_data.iloc[0]
                     risk = row['Risk Level']
@@ -157,7 +157,7 @@ def run_evaluation_from_excel():
         wb = xw.Book.caller()
         # Resolve history.csv relative to the workbook's location
         wb_dir = os.path.dirname(wb.fullname)
-        history_path = os.path.join(wb_dir, "data", "history.csv")
+        history_path = os.path.join(wb_dir, "history.csv")
         
         # Run evaluation
         results = load_and_evaluate(history_path)
@@ -170,10 +170,10 @@ def run_evaluation_from_excel():
         eval_data = {
             "Metric": ["MAE", "MSE", "R2", "BIC", "Timestamp"],
             "Value": [
-                results['MAE'], 
-                results['MSE'], 
-                results['R2'], 
-                results['BIC'], 
+                round(results['MAE'], 4), 
+                round(results['MSE'], 4), 
+                round(results['R2'], 4), 
+                round(results['BIC'], 4), 
                 datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             ]
         }
@@ -183,20 +183,31 @@ def run_evaluation_from_excel():
         sheet_name = OUTPUT_SHEET # Consolidate into Output
         if sheet_name in [s.name for s in wb.sheets]:
             sheet = wb.sheets[sheet_name]
-            # We don't clear the whole sheet anymore, we just write metrics to I1
+            # Clear old evaluation area completely to wipe formatting
+            sheet.range("I:Z").clear()
         else:
             sheet = wb.sheets.add(sheet_name)
         
-        # Write metrics to a specific side-panel range (I1:J6)
-        print(f"Writing metrics to {sheet_name} [Range I1]...")
-        sheet.range("I1").value = "--- MODEL PERFORMANCE ---"
-        sheet.range("I1").font.bold = True
-        sheet.range("I2").value = df_eval
+        # Write metrics to a specific side-panel range (J2)
+        print(f"Writing metrics to {sheet_name} [Range J2]...")
+        sheet.range("J2").value = "--- MODEL PERFORMANCE ---"
+        sheet.range("J2").font.bold = True
+        try:
+            sheet.range("J2:K2").merge()
+            sheet.range("J2:K2").api.HorizontalAlignment = -4108 # Center
+        except:
+            pass
+            
+        sheet.range("J3").options(index=False).value = df_eval
         
         # Formatting for the metrics table
-        sheet.range("I2:J2").font.bold = True
-        sheet.range("I2:J2").color = (192, 192, 192) # Light Grey
-        sheet.range("I1:J7").column_width = 15
+        sheet.range("J3:K3").font.bold = True
+        sheet.range("J3:K3").color = (68, 114, 196) # Blue Header
+        sheet.range("J3:K3").font.color = (255, 255, 255) # White Text
+        
+        # Set column widths
+        sheet.range("I:I").column_width = 5  # Spacer
+        sheet.range("J:K").column_width = 18
         
         print(f"✅ Evaluation results written as a side-panel in {sheet_name}")
         

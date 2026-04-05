@@ -10,7 +10,7 @@ def load_feedback_data(excel_path, sheet_name="Feedback_Data"):
     # Canonical names the model expects
     REQUIRED_MAP = {
         'Date': ['date', 'time', 'timestamp'],
-        'Product': ['product', 'item', 'category'],
+        'Product': ['product', 'item', 'category', 'customer'],
         'Feedback Type': ['feedback type', 'type', 'feedback'],
         'Rating': ['rating', 'score', 'ratings'],
         'Comment': ['comment', 'comments', 'feedback text', 'text'],
@@ -35,12 +35,12 @@ def load_feedback_data(excel_path, sheet_name="Feedback_Data"):
                  wb = xw.Book(excel_path)
             
             sht = wb.sheets[sheet_name]
-            # Read everything starting from A1
-            df = sht.range("A1").expand().options(pd.DataFrame, index=False).value
+            # Use used_range instead of expand() to gracefully handle blank rows/columns
+            df = sht.used_range.options(pd.DataFrame, index=False).value
             print(f"✓ Connected live to {wb.name}")
             
         except Exception as live_e:
-            print(f"⚠️ Live connection unavailable. Falling back to file read...")
+            print(f"⚠️ Live connection unavailable or blocked by Edit Mode. Falling back to saved file...")
             df = pd.read_excel(excel_path, sheet_name=sheet_name)
         
         # 2. Fuzzy Header Mapping
@@ -69,8 +69,9 @@ def load_feedback_data(excel_path, sheet_name="Feedback_Data"):
                 missing.append(canonical)
 
         if missing:
-            print(f"❌ FOUND COLUMNS: {list(df.columns)}")
-            error_msg = f"Missing required columns in '{sheet_name}': {missing}"
+            found_cols = [str(c) for c in df.columns]
+            print(f"❌ FOUND COLUMNS: {found_cols}")
+            error_msg = f"Missing required columns in '{sheet_name}': {missing}.\nWe found these columns instead: {found_cols}\n\nPlease check that your Excel table has the correct headers (like 'Product')."
             print(f"❌ {error_msg}")
             raise ValueError(error_msg)
 
