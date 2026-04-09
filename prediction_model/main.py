@@ -40,30 +40,30 @@ def run_model(excel_path=EXCEL_FILE_PATH):
         df = load_feedback_data(excel_path, INPUT_SHEET)
         
         if df.empty:
-            print("❌ No data loaded. Exiting.")
+            print("[ERROR] No data loaded. Exiting.")
             return
         
-        print(f"✓ Loaded {len(df)} records")
+        print(f"[SUCCESS] Loaded {len(df)} records")
 
         # 2. NLP Analysis (DistilBERT)
         print("\n[2/7] Running NLP Analysis (BERT)...")
         df_nlp = analyze_comments(df)
-        print(f"✓ Sentiment analysis complete")
+        print(f"[SUCCESS] Sentiment analysis complete")
         
         # 3. Bayesian Probability Model (Adaptive Weights)
         print("\n[3/7] Calculating Probabilities (Adaptive)...")
         prob_df = calculate_probabilities(df_nlp)
-        print(f"✓ Probability scores computed for {len(prob_df)} feedback types")
+        print(f"[SUCCESS] Probability scores computed for {len(prob_df)} feedback types")
         
         # 4. Risk Scoring
         print("\n[4/7] Assessing Risk...")
         risk_df = assess_risk(prob_df)
-        print(f"✓ Risk levels assigned")
+        print(f"[SUCCESS] Risk levels assigned")
         
         # 5. Recommendation Engine
         print("\n[5/7] Generating Recommendations...")
         final_df = generate_recommendations(risk_df)
-        print(f"✓ Recommendations generated")
+        print(f"[SUCCESS] Recommendations generated")
         
         # 6. History Logging (Learning Loop)
         print("\n[6/7] Logging to History (Feedback Loop)...")
@@ -78,7 +78,7 @@ def run_model(excel_path=EXCEL_FILE_PATH):
                 "outcome": "Pending" # Placeholder for future outcome
             }
             log_result(log_data)
-        print(f"✓ {len(final_df)} records logged to history.csv")
+        print(f"[SUCCESS] {len(final_df)} records logged to history.csv")
         
         # 7. Export Results
         print("\n[7/7] Exporting Results...")
@@ -119,17 +119,17 @@ def run_model(excel_path=EXCEL_FILE_PATH):
                     # 3. Update Detailed Recommendation (Column L)
                     dashboard.range(f"L{layout['rec_row']}").value = rec
                     
-            print(f"✅ Dashboard fully updated: Risk (I18:I22), Issues (H18:H22), Recommendations (L18:L34)")
+            print(f"[SUCCESS] Dashboard fully updated: Risk (I18:I22), Issues (H18:H22), Recommendations (L18:L34)")
             
         except Exception as dash_e:
-            print(f"⚠️ Could not update Dashboard summary: {dash_e}")
+            print(f"[WARNING] Could not update Dashboard summary: {dash_e}")
         
         print("\n" + "="*60)
-        print("✅ MODEL RUN COMPLETE")
+        print("[SUCCESS] MODEL RUN COMPLETE")
         print("="*60)
         
     except Exception as e:
-        print(f"\n❌ ERROR: {e}")
+        print(f"\n[ERROR] {e}")
         import traceback
         traceback.print_exc()
         raise
@@ -140,7 +140,7 @@ def run_model_from_excel():
     """
     Excel-callable function.
     """
-    print("\n🔵 Model triggered from Excel")
+    print("\n[MODEL] Model triggered from Excel")
     wb = xw.Book.caller()
     run_model(wb.fullname)
 
@@ -151,13 +151,13 @@ def run_evaluation_from_excel():
     Writes results back to an 'Evaluation_Results' sheet.
     """
     import datetime
-    print("\n📊 Evaluation triggered from Excel")
+    print("\n[EVAL] Evaluation triggered from Excel")
     
     try:
         wb = xw.Book.caller()
         # Resolve history.csv relative to the workbook's location
-        wb_dir = os.path.dirname(wb.fullname)
-        history_path = os.path.join(wb_dir, "history.csv")
+        # CONSISTENT PATHING: history.csv is always in prediction_model/data/
+        history_path = os.path.join(BASE_DIR, "data", "history.csv")
         
         # Run evaluation
         results = load_and_evaluate(history_path)
@@ -209,13 +209,13 @@ def run_evaluation_from_excel():
         sheet.range("I:I").column_width = 5  # Spacer
         sheet.range("J:K").column_width = 18
         
-        print(f"✅ Evaluation results written as a side-panel in {sheet_name}")
+        print(f"[SUCCESS] Evaluation results written as a side-panel in {sheet_name}")
         
         # Optional: Bring sheet to focus
         sheet.activate()
 
     except Exception as e:
-        error_msg = f"❌ Error during Excel evaluation: {e}"
+        error_msg = f"[ERROR] Error during Excel evaluation: {e}"
         print(error_msg)
         try:
             xw.Book.caller().app.api.MsgBox(error_msg)

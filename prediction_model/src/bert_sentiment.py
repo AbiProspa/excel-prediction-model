@@ -20,10 +20,10 @@ try:
     model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
     model.eval()
     BERT_AVAILABLE = True
-    print("✓ BERT model loaded successfully.")
+    print("[SUCCESS] BERT model loaded successfully.")
 except Exception as e:
-    print(f"⚠️ WARNING: Could not load BERT model due to network/system issue: {e}")
-    print("⚠️ System will fall back to TextBlob/Heuristic mode.")
+    print(f"[WARNING] Could not load BERT model due to network/system issue: {e}")
+    print("[INFO] System will fall back to TextBlob/Heuristic mode.")
     BERT_AVAILABLE = False
 
 # Fallback dependencies
@@ -32,7 +32,7 @@ try:
     TEXTBLOB_AVAILABLE = True
 except ImportError:
     TEXTBLOB_AVAILABLE = False
-    print("⚠️ TextBlob also not found. Using simple keyword fallback.")
+    print("[WARNING] TextBlob also not found. Using simple keyword fallback.")
 
 def get_negative_probability(text: str) -> float:
     """

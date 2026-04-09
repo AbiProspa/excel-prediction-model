@@ -66,7 +66,7 @@ def export_to_excel(df, excel_path, sheet_name='Output'):
         # 2. If not found, open it
         if target_wb:
             wb = target_wb
-            print("✓ Connected to already open Excel workbook.")
+            print("[SUCCESS] Connected to already open Excel workbook.")
         else:
             print("Opening Excel file...")
             app = xw.App(visible=False)
@@ -103,9 +103,9 @@ def export_to_excel(df, excel_path, sheet_name='Output'):
         # Save and close
         try:
             wb.save()
-            print("✓ File saved successfully.")
+            print("[SUCCESS] File saved successfully.")
         except Exception as e:
-            print(f"⚠️ WARNING: Could not save the Excel file automatically.")
+            print(f"[WARNING] Could not save the Excel file automatically.")
             print(f"   Reason: {e}")
             print(f"   ACTION REQUIRED: Please go to your open Excel window and click 'Save' manually.")
             print(f"   (Data has been written to the sheet, so you won't lose it if you save now.)")
@@ -121,7 +121,7 @@ def export_to_excel(df, excel_path, sheet_name='Output'):
             except:
                 pass
         
-        print(f"✓ Successfully exported {len(output_df)} rows to '{sheet_name}' sheet.")
+        print(f"[SUCCESS] Successfully exported {len(output_df)} rows to '{sheet_name}' sheet.")
         
     except Exception as e:
         print(f"Error exporting to Excel: {e}")

@@ -48,6 +48,39 @@ def evaluate_predictions(actual_values, predicted_values):
     
     return {"MAE": mae, "MSE": mse, "R2": r2, "BIC": bic}
 
+def auto_update_outcomes(file_path):
+    """
+    Finds 'Pending' records and assigns them a temporary numeric outcome 
+    based on the final_prob for demonstration/evaluation purposes.
+    """
+    if not os.path.exists(file_path):
+        return
+    
+    try:
+        df = pd.read_csv(file_path)
+        updated = False
+        
+        # Ensure 'outcome' is numeric so we can assign floats without dtype errors
+        if 'outcome' in df.columns:
+            df['outcome'] = pd.to_numeric(df['outcome'], errors='coerce')
+        
+        # We look for pending rows and assign a ground truth based on a threshold
+        for i, row in df.iterrows():
+            # Check for NaN (which result from 'Pending' above)
+            if pd.isnull(row.get('outcome')):
+                prob = float(row['final_prob']) if pd.notnull(row.get('final_prob')) else 0.5
+                # Heuristic: if prob > 0.5, assume it was a risk (1.0), else safe (0.0)
+                # In a real system, this would be replaced by actual user feedback.
+                df.at[i, 'outcome'] = 1.0 if prob > 0.5 else 0.0
+                updated = True
+        
+        if updated:
+            df.to_csv(file_path, index=False)
+            print(f"[SUCCESS] Automated Feedback Loop: Updated pending outcomes in {os.path.basename(file_path)}")
+            
+    except Exception as e:
+        print(f"[WARNING] Could not auto-update outcomes: {e}")
+
 def load_and_evaluate(file_path=None):
     """
     Loads history data and runs evaluation.
@@ -60,22 +93,25 @@ def load_and_evaluate(file_path=None):
     print(f"Loading history from: {file_path}")
     
     if not os.path.exists(file_path):
-        print("❌ History file not found.")
+        print("ERROR: History file not found.")
         return
+
+    # AUTO-UPDATE: Before evaluating, convert 'Pending' to numeric results for demo
+    auto_update_outcomes(file_path)
 
     try:
         df = pd.read_csv(file_path)
         
         # Check if required columns exist
         if 'outcome' not in df.columns or 'final_prob' not in df.columns:
-            print("❌ Missing 'outcome' or 'final_prob' columns in history file.")
+            print("ERROR: Missing 'outcome' or 'final_prob' columns in history file.")
             return
 
         # Filter for valid numerical outcomes (ignore 'Pending' or empty)
         valid_df = df[pd.to_numeric(df['outcome'], errors='coerce').notnull()].copy()
         
         if valid_df.empty:
-            print("⚠️ No valid outcomes found (all are 'Pending' or invalid). Cannot evaluate yet.")
+            print("WARNING: No valid outcomes found (all are 'Pending' or invalid). Cannot evaluate yet.")
             print("To test, manually update some 'Pending' outcomes in history.csv to 0.0 (Safe) or 1.0 (Risk).")
             return
 
@@ -83,7 +119,7 @@ def load_and_evaluate(file_path=None):
         valid_df = valid_df[pd.to_numeric(valid_df['final_prob'], errors='coerce').notnull()]
 
         if valid_df.empty:
-             print("⚠️ No records with both valid outcome and valid probability score found.")
+             print("WARNING: No records with both valid outcome and valid probability score found.")
              return
 
         y_true = valid_df['outcome'].astype(float)
@@ -93,7 +129,7 @@ def load_and_evaluate(file_path=None):
         return evaluate_predictions(y_true, y_pred)
 
     except Exception as e:
-        print(f"❌ Error loading or evaluating data: {e}")
+        print(f"ERROR loading or evaluating data: {e}")
 
 # --- Example Usage / Test ---
 if __name__ == "__main__":

@@ -75,9 +75,9 @@ def generate_scenario(scenario_type):
         wb.save()
         wb.close()
         app.quit()
-        print(f"✓ Scenario '{scenario_type}' injected successfully.")
+        print(f"[SUCCESS] Scenario '{scenario_type}' injected successfully.")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[ERROR] {e}")
         try: app.quit() 
         except: pass
 

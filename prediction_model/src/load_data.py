@@ -10,12 +10,14 @@ def load_feedback_data(excel_path, sheet_name="Feedback_Data"):
     # Canonical names the model expects
     REQUIRED_MAP = {
         'Date': ['date', 'time', 'timestamp'],
-        'Product': ['product', 'item', 'category', 'customer'],
-        'Feedback Type': ['feedback type', 'type', 'feedback'],
+        'Product': ['product', 'item', 'category', 'feedback type'], 
+        'SubCategory': ['subtype', 'sub-type'], 
         'Rating': ['rating', 'score', 'ratings'],
         'Comment': ['comment', 'comments', 'feedback text', 'text'],
         'Status': ['status', 'state']
     }
+    
+    CORE_SERVICES = ['ATM', 'Online Banking', 'App', 'Service', 'Loan Process']
 
     print(f"Loading data from {excel_path} [{sheet_name}]...")
 
@@ -37,54 +39,84 @@ def load_feedback_data(excel_path, sheet_name="Feedback_Data"):
             sht = wb.sheets[sheet_name]
             # Use used_range instead of expand() to gracefully handle blank rows/columns
             df = sht.used_range.options(pd.DataFrame, index=False).value
-            print(f"✓ Connected live to {wb.name}")
+            print(f"[SUCCESS] Connected live to {wb.name}")
             
         except Exception as live_e:
-            print(f"⚠️ Live connection unavailable or blocked by Edit Mode. Falling back to saved file...")
+            print(f"[WARNING] Live connection unavailable or blocked by Edit Mode. Falling back to saved file...")
             df = pd.read_excel(excel_path, sheet_name=sheet_name)
         
-        # 2. Fuzzy Header Mapping
-        actual_cols = [str(c).strip().lower() for c in df.columns]
+        # 2. Fuzzy Header Mapping (New robust logic)
+        actual_cols = df.columns.tolist()
+        normalized_actual = [str(c).strip().lower() for c in actual_cols]
         new_columns = {}
+        mapped_indices = set()
         missing = []
 
+        # Pass 1: Exact Matches
         for canonical, aliases in REQUIRED_MAP.items():
+            low_can = canonical.lower()
+            if low_can in normalized_actual:
+                idx = normalized_actual.index(low_can)
+                new_columns[actual_cols[idx]] = canonical
+                mapped_indices.add(idx)
+
+        # Pass 2: Alias/Partial Matches
+        for canonical, aliases in REQUIRED_MAP.items():
+            if canonical in new_columns.values():
+                continue # Already found exact match
+            
             found = False
-            # Check for exact matches first
-            if canonical.lower() in actual_cols:
-                idx = actual_cols.index(canonical.lower())
-                new_columns[df.columns[idx]] = canonical
-                found = True
-            else:
-                # Check for aliases or substrings
-                for alias in aliases:
-                    for i, act in enumerate(actual_cols):
-                        if alias in act or act in alias:
-                            new_columns[df.columns[i]] = canonical
-                            found = True
-                            break
-                    if found: break
+            for alias in aliases:
+                for i, act in enumerate(normalized_actual):
+                    if i in mapped_indices: continue
+                    if alias in act or act in alias:
+                        new_columns[actual_cols[i]] = canonical
+                        mapped_indices.add(i)
+                        found = True
+                        break
+                if found: break
             
             if not found:
                 missing.append(canonical)
 
-        if missing:
-            found_cols = [str(c) for c in df.columns]
-            print(f"❌ FOUND COLUMNS: {found_cols}")
-            error_msg = f"Missing required columns in '{sheet_name}': {missing}.\nWe found these columns instead: {found_cols}\n\nPlease check that your Excel table has the correct headers (like 'Product')."
-            print(f"❌ {error_msg}")
+        # Manage missing columns (SubCategory is now optional)
+        OPTIONAL = ['SubCategory']
+        critical_missing = [m for m in missing if m not in OPTIONAL]
+        
+        if critical_missing:
+            found_cols = [df.columns.tolist()]
+            print(f"[ERROR] FOUND COLUMNS: {found_cols}")
+            error_msg = f"Missing required columns in '{sheet_name}': {critical_missing}.\nWe found these columns instead: {found_cols}"
+            print(f"[ERROR] {error_msg}")
             raise ValueError(error_msg)
 
         # Rename columns to their canonical names
         df = df.rename(columns=new_columns)
         
+        # Add missing optional columns
+        for opt in OPTIONAL:
+            if opt not in df.columns:
+                df[opt] = "General"
+        
+        # Maintain compatibility: Rename SubCategory back to Feedback Type for the model
+        df = df.rename(columns={'SubCategory': 'Feedback Type'})
+        
         # Keep only the ones we need for the model
-        df = df[list(REQUIRED_MAP.keys())]
+        expected_cols = ['Date', 'Product', 'Feedback Type', 'Rating', 'Comment', 'Status']
+        df = df[expected_cols]
         
         # 3. Minimal data cleaning
         df = df.dropna(how='all') 
         
-        print(f"✓ Successfully loaded {len(df)} rows with fuzzy header mapping.")
+        # 4. Strict Category Filter (ATM, Online Banking, App, Service, Loan Process)
+        if 'Product' in df.columns:
+            initial_count = len(df)
+            df = df[df['Product'].isin(CORE_SERVICES)]
+            lost = initial_count - len(df)
+            if lost > 0:
+                print(f"[INFO] Filtered out {lost} rows not belonging to core services.")
+        
+        print(f"[SUCCESS] Successfully loaded {len(df)} rows after service filtering.")
         return df
 
     except Exception as e:

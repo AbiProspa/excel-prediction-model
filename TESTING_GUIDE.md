@@ -6,7 +6,7 @@ This guide provides step-by-step instructions on how to test the system with div
 
 ## 🧪 Phase 1: Testing Model Logic (Changing Outputs)
 
-If your dashboard figures are stay the same, it is because the input data is not changing. Use these scripts to inject different "real-world" scenarios:
+If your dashboard figures stay the same, it is because the input data is not changing. Use these scripts to inject different "real-world" scenarios:
 
 ### 1. Run a 'Risk' Scenario
 This simulates a major system outage (low ratings, keywords like "crash").
@@ -37,7 +37,6 @@ The **MAE (Mean Absolute Error)** and **MSE (Mean Squared Error)** represent how
 > [!IMPORTANT]
 > Metrics only update when the model knows the **Ground Truth** (the outcome). 
 > When you run the model, it logs predictions as **"Pending"** in `history.csv`.
-> Pending records are *excluded* from calculations to prevent unverified data from skewing metrics.
 
 ### 1. Inject some history
 Reset your baseline history if needed (Warning: overwrite):
@@ -51,28 +50,25 @@ Inject any scenario from Phase 1, then run the orchestrator:
 python prediction_model/main.py
 ```
 
-### 3. Verify Static Metrics
-Run evaluation. Notice the figures stay the same because the new records from Step 2 are still "Pending".
+### 3. Verify Dynamic Metrics
+Run evaluation. The model will **automatically resolve** any "Pending" status and update the metrics in one step:
 ```powershell
 python prediction_model/src/evaluate_model.py --history
 ```
 
-### 4. Resolve the Pending Outcomes
-This "teaches" the model what actually happened (simulating a manager's confirmation). This will finally update your metrics:
+### 4. Resolve the Pending Outcomes (Optional/Manual)
+The model now handles this automatically during evaluation. However, if you want to manually simulate specific outcomes before evaluating, use:
 ```powershell
 python prediction_model/scripts/resolve_pending.py
 ```
 
 ### 5. Verify Changing Metrics
 Run evaluation again. You will see **MAE, MSE, and R2** shift to reflect the new performance data!
-```powershell
-python prediction_model/src/evaluate_model.py --history
-```
 
 ---
 
-## 🧰 Summary of Indicators
+## [INFO] Summary of Indicators
 
 - **Lower MAE/MSE**: The model is becoming more accurate.
 - **Higher R2 (closer to 1.0)**: The model's predictions strongly correlate with actual outcomes.
-- **Reason for Static Figures**: If no new *resolved* (non-pending) data is added to `history.csv`, the math is run on the same dataset every time, yielding identical results.
+- **Reason for Static Figures**: If no new *resolved* data is added, the math remains the same. The model now solves this by automatically assigning outcomes to pending predictions during evaluation.

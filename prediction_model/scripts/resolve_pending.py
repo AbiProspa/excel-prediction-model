@@ -7,7 +7,7 @@ def resolve_pending():
     history_file = os.path.join(base_dir, "data", "history.csv")
     
     if not os.path.exists(history_file):
-        print(f"❌ Error: {history_file} not found.")
+        print(f"[ERROR] {history_file} not found.")
         return
 
     print(f"Reading history from {history_file}...")
@@ -21,7 +21,7 @@ def resolve_pending():
     num_pending = pending_mask.sum()
     
     if num_pending == 0:
-        print("✓ No 'Pending' records found. All outcomes are already resolved.")
+        print("[SUCCESS] No 'Pending' records found. All outcomes are already resolved.")
         return
 
     print(f"Resolving {num_pending} pending records...")
@@ -32,18 +32,17 @@ def resolve_pending():
     def simulate_outcome(prob):
         # prob is the model's prediction of risk (0.0 to 1.0)
         # We'll use this to bias the random "ground truth"
-        # Clip to [0, 1] for safety
         p = max(0.0, min(1.0, float(prob)))
         return float(np.random.choice([1.0, 0.0], p=[p, 1-p]))
 
-    # Iterate and replace to avoid confusing pandas assignment types
+    # Iterate and replace 
     for idx in df[pending_mask].index:
         prob = df.at[idx, 'final_prob']
         df.at[idx, 'outcome'] = str(simulate_outcome(prob))
     
     # Save back
     df.to_csv(history_file, index=False)
-    print(f"✓ {num_pending} records successfully resolved. Run the evaluation script to see updated metrics!")
+    print(f"[SUCCESS] {num_pending} records successfully resolved. Run the evaluation script to see updated metrics!")
 
 if __name__ == "__main__":
     resolve_pending()

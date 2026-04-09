@@ -39,10 +39,11 @@ def calculate_probabilities(df):
         'Keywords': summarize_keywords
     }
     
-    grouped = df.groupby('Feedback Type').agg(agg_funcs).reset_index()
+    grouped = df.groupby('Product').agg(agg_funcs).reset_index()
     
     # Rename columns to match Risk Engine expectations
     grouped.rename(columns={
+        'Product': 'Feedback Type',
         'Rating': 'Average Rating',
         'Sentiment Score': 'Average Sentiment Score'
     }, inplace=True)

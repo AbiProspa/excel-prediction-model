@@ -25,7 +25,7 @@ def add_button():
         bas_path = os.path.join(xlwings_path, 'xlwings.bas')
         
         if not os.path.exists(bas_path):
-            print(f"❌ Could not find xlwings.bas at {bas_path}")
+            print(f"[ERROR] Could not find xlwings.bas at {bas_path}")
             return
 
         # Check if already imported
@@ -39,11 +39,11 @@ def add_button():
             if not found:
                 print("Importing xlwings VBA module...")
                 wb.api.VBProject.VBComponents.Import(bas_path)
-                print("✓ xlwings VBA module imported.")
+                print("[SUCCESS] xlwings VBA module imported.")
             else:
-                print("✓ xlwings VBA module already present.")
+                print("[SUCCESS] xlwings VBA module already present.")
         except Exception as e:
-            print(f"⚠️ Could not import VBA module automatically: {e}")
+            print(f"[WARNING] Could not import VBA module automatically: {e}")
             print("Please ensure 'Trust access to the VBA project object model' is enabled in Excel.")
             return
 
@@ -51,7 +51,7 @@ def add_button():
         # The user specifically requested it on the 'Dashboard' sheet
         target_sheet = "Dashboard"
         if target_sheet not in [s.name for s in wb.sheets]:
-             print(f"⚠️ Sheet '{target_sheet}' not found. Creating it...")
+             print(f"[WARNING] Sheet '{target_sheet}' not found. Creating it...")
              sht = wb.sheets.add(target_sheet)
         else:
              sht = wb.sheets[target_sheet]
@@ -61,7 +61,7 @@ def add_button():
         button_name = "EvaluateBtn"
         
         if button_name in existing_buttons:
-            print(f"✓ Button '{button_name}' already exists. Re-linking macro...")
+            print(f"[SUCCESS] Button '{button_name}' already exists. Re-linking macro...")
             btn = sht.shapes[button_name]
         else:
             print(f"Creating 'Evaluate' button on sheet '{target_sheet}'...")
@@ -106,7 +106,7 @@ End Sub
             new_mod = wb.api.VBProject.VBComponents.Add(1) # 1 = vbext_ct_StdModule
             new_mod.Name = module_name
             new_mod.CodeModule.AddFromString(vba_code)
-            print(f"✓ VBA Macro 'RunEvaluation' added to module '{module_name}'.")
+            print(f"[SUCCESS] VBA Macro 'RunEvaluation' added to module '{module_name}'.")
             
             # Assign macro to button
             btn.api.OnAction = "RunEvaluation"
@@ -118,10 +118,10 @@ End Sub
                 elif "Evaluate" in s.name and s.name != button_name:
                     s.api.OnAction = "RunEvaluation"
                     
-            print("✓ Buttons linked to AI macros.")
+            print("[SUCCESS] Buttons linked to AI macros.")
             
         except Exception as e:
-             print(f"⚠️ Could not add VBA macro code: {e}")
+             print(f"[WARNING] Could not add VBA macro code: {e}")
 
         wb.save()
         print("\n🎉 SETUP COMPLETE!")
