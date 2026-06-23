@@ -28,19 +28,17 @@ def generate_recommendations(risk_df):
         }
     }
     
-    # Specific recommendations by Feedback Type
+    # Specific recommendations by Feedback Type (Product).
+    # NOTE: keys MUST match the canonical product names produced by
+    # load_data.CORE_SERVICES (ATM, App, Online Banking, Service, Loan Process),
+    # otherwise products silently fall back to the generic default above.
     specific_recs = {
         "ATM": {
             "Critical": "Immediate maintenance required for ATM network. Check for hardware failures and cash availability.",
             "Warning": "Increase ATM cash replenishment frequency. Schedule preventive maintenance.",
             "Stable": "ATM network operating normally. Continue regular maintenance schedule."
         },
-        "POS": {
-            "Critical": "Critical POS terminal issues detected. Deploy technical team for urgent repairs.",
-            "Warning": "Monitor POS transaction success rates. Update firmware if necessary.",
-            "Stable": "POS terminals functioning well. Maintain current support levels."
-        },
-        "Mobile App": {
+        "App": {
             "Critical": "App experiencing critical issues. Roll back recent updates and investigate server capacity.",
             "Warning": "Address app performance concerns. Conduct user testing and optimize load times.",
             "Stable": "Mobile app performance is satisfactory. Continue feature enhancements."
@@ -50,17 +48,22 @@ def generate_recommendations(risk_df):
             "Warning": "Improve online banking user experience. Address login and navigation issues.",
             "Stable": "Online banking service running smoothly. Monitor for security threats."
         },
-        "Customer Service": {
+        "Service": {
             "Critical": "Immediate customer service improvements needed. Increase staffing and conduct training.",
             "Warning": "Enhance customer service processes. Reduce wait times and improve staff responsiveness.",
             "Stable": "Customer service performing well. Maintain current service quality."
         },
-        "Loan Services": {
+        "Loan Process": {
             "Critical": "Critical issues in loan processing. Streamline approval process and fix system bugs.",
             "Warning": "Improve loan application processing times. Clarify documentation requirements.",
             "Stable": "Loan services meeting expectations. Continue efficient processing."
         }
     }
+    # Backwards-compatible aliases for legacy/raw category names.
+    specific_recs["POS"] = specific_recs["ATM"]
+    specific_recs["Mobile App"] = specific_recs["App"]
+    specific_recs["Customer Service"] = specific_recs["Service"]
+    specific_recs["Loan Services"] = specific_recs["Loan Process"]
     
     def extract_top_issues(keywords_str):
         """Extract top 3 most mentioned keywords"""

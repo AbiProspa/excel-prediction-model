@@ -19,7 +19,7 @@ class ExcelFileHandler(FileSystemEventHandler):
         self.last_modified = time.time()
         
     def on_modified(self, event):
-        if event.src_path.endswith('.xlsx') and event.src_path == self.excel_path:
+        if event.src_path.endswith(('.xlsx', '.xlsm')) and event.src_path == self.excel_path:
             current_time = time.time()
             if current_time - self.last_modified > 2:  # Debounce: wait 2 seconds
                 self.last_modified = current_time
@@ -28,16 +28,16 @@ class ExcelFileHandler(FileSystemEventHandler):
     
     def run_model(self):
         try:
-            df = load_feedback_data(self.excel_path)
+            df = load_feedback_data(self.excel_path, "Feedback_Data")
             if df.empty:
                 print("No data loaded.")
                 return
-            
+
             df_nlp = analyze_comments(df)
             prob_df = calculate_probabilities(df_nlp)
             risk_df = assess_risk(prob_df)
             final_df = generate_recommendations(risk_df)
-            export_to_excel(final_df, self.excel_path)
+            export_to_excel(final_df, self.excel_path, "Output")
             
             print(f"✓ Model updated at {time.strftime('%H:%M:%S')}")
         except Exception as e:
@@ -71,13 +71,14 @@ def monitor_excel(excel_path):
 
 if __name__ == "__main__":
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    excel_path = os.path.join(base_dir, 'data', 'feedback.xlsx')
-    
+    # Match main.py: watch the primary .xlsm template, not the legacy feedback.xlsx.
+    excel_path = os.path.join(base_dir, 'data', 'Feedback_Dashboard_Template.xlsm')
+
     if len(sys.argv) > 1:
         excel_path = sys.argv[1]
-    
+
     print(f"\nExcel file: {excel_path}")
-    print(f"Sheet: Feedback_Data")
-    print(f"Output: ModelOutput sheet\n")
-    
+    print(f"Input sheet: Feedback_Data")
+    print(f"Output sheet: Output\n")
+
     monitor_excel(excel_path)

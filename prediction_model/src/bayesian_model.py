@@ -1,3 +1,4 @@
+import re
 import pandas as pd
 from learning_engine import load_weights
 
@@ -65,8 +66,11 @@ def calculate_probabilities(df):
 
     def boost_sentiment(row):
         base_prob = row['Average Sentiment Score']
-        keywords = str(row.get('Keywords', '')).lower().split(', ')
-        
+        # Robust tokenization: split on any non-word character (commas, spaces,
+        # semicolons, etc.) so the match doesn't depend on a specific ", " join.
+        raw = str(row.get('Keywords', '')).lower()
+        keywords = [w for w in re.split(r'[^a-z0-9]+', raw) if w]
+
         boosts = [KEYWORD_PRIORS[k] for k in keywords if k in KEYWORD_PRIORS]
         if boosts:
             # If high-risk keywords exist, we lean heavily towards their prior

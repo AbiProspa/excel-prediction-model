@@ -50,34 +50,54 @@ def evaluate_predictions(actual_values, predicted_values):
 
 def auto_update_outcomes(file_path):
     """
-    Finds 'Pending' records and assigns them a temporary numeric outcome 
-    based on the final_prob for demonstration/evaluation purposes.
+    Finds 'Pending' records and assigns them a SIMULATED numeric outcome so the
+    demo can show non-trivial metrics before any real outcomes exist.
+
+    IMPORTANT (honesty note): there is no real ground truth in a demo run. The
+    previous implementation copied `outcome = 1 if final_prob > 0.5 else 0`,
+    which made every pending row *perfectly* predicted and drove MAE/MSE
+    artificially toward zero -- the model was being graded against itself.
+
+    Instead we draw a synthetic outcome from a biased coin flip
+    (P(risk) = final_prob). The expected outcome still tracks the prediction,
+    but because outcomes are hard 0/1 draws there is genuine, non-zero error,
+    so the reported MAE/MSE/R2 reflect a real (if simulated) gap. A fixed seed
+    keeps the demo reproducible.
+
+    Replace this with real user-confirmed outcomes (see scripts/resolve_pending.py
+    for the same simulation, or update history.csv manually) for a true evaluation.
     """
     if not os.path.exists(file_path):
         return
-    
+
     try:
         df = pd.read_csv(file_path)
-        updated = False
-        
-        # Ensure 'outcome' is numeric so we can assign floats without dtype errors
+
+        # Ensure 'outcome' is numeric so we can assign floats without dtype errors.
+        # Non-numeric values such as the literal "Pending" become NaN.
         if 'outcome' in df.columns:
             df['outcome'] = pd.to_numeric(df['outcome'], errors='coerce')
-        
-        # We look for pending rows and assign a ground truth based on a threshold
-        for i, row in df.iterrows():
-            # Check for NaN (which result from 'Pending' above)
-            if pd.isnull(row.get('outcome')):
-                prob = float(row['final_prob']) if pd.notnull(row.get('final_prob')) else 0.5
-                # Heuristic: if prob > 0.5, assume it was a risk (1.0), else safe (0.0)
-                # In a real system, this would be replaced by actual user feedback.
-                df.at[i, 'outcome'] = 1.0 if prob > 0.5 else 0.0
-                updated = True
-        
-        if updated:
-            df.to_csv(file_path, index=False)
-            print(f"[SUCCESS] Automated Feedback Loop: Updated pending outcomes in {os.path.basename(file_path)}")
-            
+        else:
+            return
+
+        pending_mask = df['outcome'].isnull()
+        num_pending = int(pending_mask.sum())
+        if num_pending == 0:
+            return
+
+        # Seed locally for reproducibility without disturbing global RNG state.
+        rng = np.random.default_rng(42)
+        for i in df[pending_mask].index:
+            prob = df.at[i, 'final_prob']
+            p = float(prob) if pd.notnull(prob) else 0.5
+            p = max(0.0, min(1.0, p))
+            df.at[i, 'outcome'] = float(rng.choice([1.0, 0.0], p=[p, 1.0 - p]))
+
+        df.to_csv(file_path, index=False)
+        print(f"[SIMULATED] Resolved {num_pending} pending record(s) with synthetic "
+              f"ground truth (biased coin) in {os.path.basename(file_path)}. "
+              f"These are NOT real outcomes.")
+
     except Exception as e:
         print(f"[WARNING] Could not auto-update outcomes: {e}")
 
