@@ -1,137 +1,118 @@
-import xlwings as xw
 import os
-import sys
+import xlwings as xw
 
-def add_button():
-    print("Connecting to the Excel dashboard...")
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    excel_path = os.path.join(base_dir, "data", "Feedback_Dashboard_Template.xlsm")
-    
-    try:
-        # Try to connect to active book first, fallback to specific path
-        try:
-            wb = xw.books.active
-            if not wb:
-                raise Exception("No active book")
-        except:
-             print(f"Opening specific file: {excel_path}")
-             wb = xw.Book(excel_path)
-        
-        print(f"Connected to: {wb.name}")
-        
-        # 2. Ensure xlwings VBA module is present
-        # Locate xlwings.bas in the package directory
-        xlwings_path = os.path.dirname(xw.__file__)
-        bas_path = os.path.join(xlwings_path, 'xlwings.bas')
-        
-        if not os.path.exists(bas_path):
-            print(f"[ERROR] Could not find xlwings.bas at {bas_path}")
+
+def ensure_xlwings_module(wb):
+    xlwings_path = os.path.dirname(xw.__file__)
+    bas_path = os.path.join(xlwings_path, "xlwings.bas")
+
+    if not os.path.exists(bas_path):
+        raise FileNotFoundError(f"Could not find xlwings.bas at {bas_path}")
+
+    for comp in wb.api.VBProject.VBComponents:
+        if comp.Name == "xlwings":
+            print("[SUCCESS] xlwings VBA module already present.")
             return
 
-        # Check if already imported
-        try:
-            found = False
-            for comp in wb.api.VBProject.VBComponents:
-                if comp.Name == "xlwings":
-                    found = True
-                    break
-            
-            if not found:
-                print("Importing xlwings VBA module...")
-                wb.api.VBProject.VBComponents.Import(bas_path)
-                print("[SUCCESS] xlwings VBA module imported.")
-            else:
-                print("[SUCCESS] xlwings VBA module already present.")
-        except Exception as e:
-            print(f"[WARNING] Could not import VBA module automatically: {e}")
-            print("Please ensure 'Trust access to the VBA project object model' is enabled in Excel.")
-            return
+    print("Importing xlwings VBA module...")
+    wb.api.VBProject.VBComponents.Import(bas_path)
+    print("[SUCCESS] xlwings VBA module imported.")
 
-        # 3. Add the Button
-        # The user specifically requested it on the 'Dashboard' sheet
-        target_sheet = "Dashboard"
-        if target_sheet not in [s.name for s in wb.sheets]:
-             print(f"[WARNING] Sheet '{target_sheet}' not found. Creating it...")
-             sht = wb.sheets.add(target_sheet)
-        else:
-             sht = wb.sheets[target_sheet]
-        
-        # Check if button already exists to avoid duplicates
-        existing_buttons = [shape.name for shape in sht.shapes]
-        button_name = "EvaluateBtn"
-        
-        if button_name in existing_buttons:
-            print(f"[SUCCESS] Button '{button_name}' already exists. Re-linking macro...")
-            btn = sht.shapes[button_name]
-        else:
-            print(f"Creating 'Evaluate' button on sheet '{target_sheet}'...")
-            # Position: Row 1, Column H (approx)
-            left = sht.range("H1").left
-            top = sht.range("H1").top
-            # Use the underlying COM API for robust button creation on Windows
-            btn_api = sht.api.Buttons().Add(left + 10, top + 5, 100, 30)
-            btn_api.Name = button_name
-            btn_api.Caption = "Evaluate"
-            # Get the xlwings Shape object for further manipulation if needed
-            btn = sht.shapes[button_name]
 
-        # Link to the Python script
-        # The macro name in VBA is usually 'RunPython' followed by the code snippet
-        # But we can use the Sample macro or a custom one.
-        # xlwings-created VBA includes 'RunPython' which we can call.
-        
-        # We need a VBA wrapper to call the Python function
-        vba_code = """
+def install_macro_module(wb, project_root):
+    module_name = "PredictionModelMacros"
+    project_root = project_root.replace("\\", "\\\\")
+    vba_code = f'''
 Sub RunModel()
-    RunPython "import prediction_model.main as m; m.run_model_from_excel()"
-    MsgBox "AI Dashboard Update Complete!", vbInformation, "Hybrid AI Model"
+    RunPython "import sys; sys.path.insert(0, r""{project_root}"" ); import prediction_model.main as m; m.run_model_from_excel()"
+    MsgBox "AI model run complete. New records should be logged to history.csv.", vbInformation, "Hybrid AI Model"
 End Sub
 
 Sub RunEvaluation()
-    RunPython "import prediction_model.main as m; m.run_evaluation_from_excel()"
-    MsgBox "Model Evaluation Complete!", vbInformation, "Hybrid AI Model"
+    RunPython "import sys; sys.path.insert(0, r""{project_root}"" ); import prediction_model.main as m; m.run_evaluation_from_excel()"
+    MsgBox "Model evaluation complete.", vbInformation, "Hybrid AI Model"
 End Sub
-"""
-        # Add the VBA wrapper to a new module
+
+Sub RunBenchmark()
+    RunPython "import sys; sys.path.insert(0, r""{project_root}"" ); import prediction_model.main as m; m.run_benchmark_from_excel()"
+    MsgBox "Benchmark comparison complete. See the Benchmark_Comparison sheet.", vbInformation, "Hybrid AI Model"
+End Sub
+'''
+
+    for comp in wb.api.VBProject.VBComponents:
+        if comp.Name == module_name:
+            wb.api.VBProject.VBComponents.Remove(comp)
+            break
+
+    new_mod = wb.api.VBProject.VBComponents.Add(1)
+    new_mod.Name = module_name
+    new_mod.CodeModule.AddFromString(vba_code)
+    print(f"[SUCCESS] VBA macros installed in module '{module_name}'.")
+
+
+def upsert_button(sheet, name, caption, macro, cell, width=120):
+    existing = {shape.name: shape for shape in sheet.shapes}
+    left = sheet.range(cell).left
+    top = sheet.range(cell).top
+
+    if name in existing:
+        btn = existing[name]
+        print(f"[SUCCESS] Re-linking existing button '{caption}'.")
+    else:
+        print(f"Creating button '{caption}' on '{sheet.name}'...")
+        btn_api = sheet.api.Buttons().Add(left, top, width, 32)
+        btn_api.Name = name
+        btn = sheet.shapes[name]
+
+    btn.api.Caption = caption
+    btn.api.OnAction = macro
+    return btn
+
+
+def add_buttons():
+    print("Connecting to the Excel dashboard...")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    excel_path = os.path.join(base_dir, "data", "Feedback_Dashboard_Template.xlsm")
+
+    try:
         try:
-            module_name = "PredictionModelMacros"
-            macro_found = False
-            
-            # Remove old module if exists to update code
-            for comp in wb.api.VBProject.VBComponents:
-                if comp.Name == module_name:
-                    wb.api.VBProject.VBComponents.Remove(comp)
-                    break
-            
-            new_mod = wb.api.VBProject.VBComponents.Add(1) # 1 = vbext_ct_StdModule
-            new_mod.Name = module_name
-            new_mod.CodeModule.AddFromString(vba_code)
-            print(f"[SUCCESS] VBA Macro 'RunEvaluation' added to module '{module_name}'.")
-            
-            # Assign macro to button
-            btn.api.OnAction = "RunEvaluation"
-            
-            # Ensure the existing buttons are also correctly linked
-            for s in dashboard.shapes:
-                if "Run" in s.name:
-                    s.api.OnAction = "RunModel"
-                elif "Evaluate" in s.name and s.name != button_name:
-                    s.api.OnAction = "RunEvaluation"
-                    
-            print("[SUCCESS] Buttons linked to AI macros.")
-            
-        except Exception as e:
-             print(f"[WARNING] Could not add VBA macro code: {e}")
+            wb = xw.books.active
+            if wb is None:
+                raise RuntimeError("No active workbook")
+        except Exception:
+            print(f"Opening workbook: {excel_path}")
+            wb = xw.Book(excel_path)
+
+        print(f"Connected to: {wb.name}")
+        ensure_xlwings_module(wb)
+        install_macro_module(wb, os.path.dirname(base_dir))
+
+        target_sheet = "Dashboard"
+        if target_sheet not in [s.name for s in wb.sheets]:
+            sheet = wb.sheets.add(target_sheet, before=wb.sheets[0])
+        else:
+            sheet = wb.sheets[target_sheet]
+
+        upsert_button(sheet, "RunModelBtn", "Run Model", "RunModel", "H1")
+        upsert_button(sheet, "EvaluateBtn", "Evaluate", "RunEvaluation", "J1")
+        upsert_button(sheet, "BenchmarkBtn", "Benchmark", "RunBenchmark", "L1")
+
+        if "Benchmark_Comparison" not in [s.name for s in wb.sheets]:
+            bench = wb.sheets.add("Benchmark_Comparison", after=wb.sheets[-1])
+            bench.range("A1").value = "MODEL BENCHMARK COMPARISON"
+            bench.range("A3").value = "Click the Benchmark button on the Dashboard sheet to generate this table."
 
         wb.save()
-        print("\n🎉 SETUP COMPLETE!")
-        print("You can now go to Excel and click the 'Evaluate' button.")
+        print("\nSETUP COMPLETE")
+        print("Dashboard buttons are ready: Run Model, Evaluate, Benchmark.")
 
     except Exception as e:
-        print(f"❌ Error during button setup: {e}")
+        print(f"Error during button setup: {e}")
         print("\nTroubleshooting:")
-        print("1. Ensure Excel is open with the dashboard file active.")
-        print("2. Ensure 'Trust access to the VBA project object model' is enabled.")
+        print("1. Open the dashboard workbook in Excel, then run this script again.")
+        print("2. Enable: File > Options > Trust Center > Macro Settings > Trust access to the VBA project object model.")
+        print("3. Make sure macros are enabled for this workbook.")
+
 
 if __name__ == "__main__":
-    add_button()
+    add_buttons()

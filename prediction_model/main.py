@@ -14,6 +14,7 @@ from recommendation_engine import generate_recommendations
 from export_results import export_to_excel
 from feedback_loop import log_result
 from evaluate_model import load_and_evaluate
+from compare_benchmarks import compare_models
 
 # ========================================
 # CENTRALIZED EXCEL CONFIGURATION
@@ -163,7 +164,7 @@ def run_evaluation_from_excel():
         results = load_and_evaluate(history_path)
         
         if not results or results.get('MAE') is None:
-             print("❌ Evaluation failed or no data available.")
+             print("Evaluation failed or no data available.")
              return
 
         # Prepare results for Excel
@@ -184,7 +185,7 @@ def run_evaluation_from_excel():
         if sheet_name in [s.name for s in wb.sheets]:
             sheet = wb.sheets[sheet_name]
             # Clear old evaluation area completely to wipe formatting
-            sheet.range("I:Z").clear()
+            sheet.range("I:K").clear()
         else:
             sheet = wb.sheets.add(sheet_name)
         
@@ -222,6 +223,100 @@ def run_evaluation_from_excel():
         except:
             pass
 
+@xw.sub
+def run_benchmark_from_excel():
+    """
+    Excel-callable function to compare Bayesian-BERT against benchmark models.
+    Writes a presentation-friendly table into the workbook.
+    """
+    print("\n[BENCHMARK] Benchmark comparison triggered from Excel")
+
+    try:
+        wb = xw.Book.caller()
+        history_path = os.path.join(BASE_DIR, "data", "history.csv")
+        output_path = os.path.join(BASE_DIR, "data", "benchmark_comparison.csv")
+
+        comparison, saved_path, train_count, test_count = compare_models(
+            history_path,
+            output_path,
+        )
+
+        display_cols = ["Model", "Accuracy", "Precision", "Recall", "F1-score"]
+        display_df = comparison[display_cols].copy()
+        for col in display_cols[1:]:
+            display_df[col] = (display_df[col] * 100).round(1).astype(str) + "%"
+
+        full_df = comparison.copy()
+
+        sheet_name = "Benchmark_Comparison"
+        if sheet_name in [s.name for s in wb.sheets]:
+            sheet = wb.sheets[sheet_name]
+            sheet.clear()
+        else:
+            sheet = wb.sheets.add(sheet_name, after=wb.sheets[-1])
+
+        sheet.range("A1").value = "MODEL BENCHMARK COMPARISON"
+        sheet.range("A1").font.bold = True
+        sheet.range("A1").font.size = 16
+
+        sheet.range("A3").value = "Presentation Table"
+        sheet.range("A3").font.bold = True
+        sheet.range("A4").options(index=False).value = display_df
+
+        sheet.range("A10").value = "Full Metrics"
+        sheet.range("A10").font.bold = True
+        sheet.range("A11").options(index=False).value = full_df
+
+        sheet.range("A18").value = "Notes"
+        sheet.range("A18").font.bold = True
+        sheet.range("A19").value = (
+            f"Training rows: {train_count}; Test rows: {test_count}. "
+            "RIC is Risk Identification Correctness, implemented as balanced accuracy."
+        )
+        sheet.range("A20").value = f"CSV saved to: {saved_path}"
+
+        sheet.range("A4:E4").font.bold = True
+        sheet.range("A4:E4").color = (68, 114, 196)
+        sheet.range("A4:E4").font.color = (255, 255, 255)
+        sheet.range("A11:I11").font.bold = True
+        sheet.range("A11:I11").color = (68, 114, 196)
+        sheet.range("A11:I11").font.color = (255, 255, 255)
+        sheet.range("A:E").column_width = 18
+        sheet.range("A:A").column_width = 24
+        sheet.range("A19:I20").wrap_text = True
+
+        try:
+            sheet.range("A4:E8").api.Borders.Weight = 2
+            sheet.range("A11:I15").api.Borders.Weight = 2
+        except:
+            pass
+
+        output_sheet_name = OUTPUT_SHEET
+        if output_sheet_name in [s.name for s in wb.sheets]:
+            out_sheet = wb.sheets[output_sheet_name]
+        else:
+            out_sheet = wb.sheets.add(output_sheet_name)
+
+        out_sheet.range("M:Q").clear()
+        out_sheet.range("M2").value = "BENCHMARK COMPARISON"
+        out_sheet.range("M2").font.bold = True
+        out_sheet.range("M2").font.size = 14
+        out_sheet.range("M4").options(index=False).value = display_df
+        out_sheet.range("M4:Q4").font.bold = True
+        out_sheet.range("M4:Q4").color = (68, 114, 196)
+        out_sheet.range("M4:Q4").font.color = (255, 255, 255)
+        out_sheet.range("M:Q").column_width = 18
+
+        sheet.activate()
+        print(f"[SUCCESS] Benchmark comparison written to '{sheet_name}' and '{output_sheet_name}'.")
+
+    except Exception as e:
+        error_msg = f"[ERROR] Error during benchmark comparison: {e}"
+        print(error_msg)
+        try:
+            xw.Book.caller().app.api.MsgBox(error_msg)
+        except:
+            pass
 
 if __name__ == "__main__":
     import argparse
@@ -235,4 +330,3 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     run_model(args.excel_path)
-
