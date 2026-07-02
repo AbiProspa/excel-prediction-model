@@ -24,6 +24,216 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 EXCEL_FILE_PATH = os.path.join(BASE_DIR, "data", "Feedback_Dashboard_Template.xlsm")
 INPUT_SHEET = "Feedback_Data"
 OUTPUT_SHEET = "Output"
+CORE_SERVICES = ['App', 'ATM', 'Loan Process', 'Online Banking', 'Service']
+
+
+def _find_open_workbook(excel_path):
+    target_path = os.path.abspath(excel_path).lower()
+
+    try:
+        caller = xw.Book.caller()
+        if caller.fullname and caller.fullname.lower() == target_path:
+            return caller
+    except Exception:
+        pass
+
+    for app in xw.apps:
+        for book in app.books:
+            try:
+                if book.fullname and book.fullname.lower() == target_path:
+                    return book
+            except Exception:
+                continue
+
+    return xw.Book(excel_path)
+
+
+def _safe_chart(dashboard, chart_name):
+    try:
+        return dashboard.api.ChartObjects(chart_name).Chart
+    except Exception as exc:
+        print(f"[WARNING] Dashboard chart '{chart_name}' was not found: {exc}")
+        return None
+
+
+def _set_series_formula(series, name, categories_range, values_range, order):
+    formula = (
+        f'=SERIES("{name}",'
+        f"'{categories_range.sheet.name}'!{categories_range.get_address(False, False)},"
+        f"'{values_range.sheet.name}'!{values_range.get_address(False, False)},"
+        f"{order})"
+    )
+    series.Formula = formula
+
+
+def update_dashboard_charts(wb, df):
+    """
+    Rebuilds the worksheet-backed dashboard chart data and points the existing
+    dashboard charts at those ranges. The template charts were originally saved
+    with literal cached values, so Excel had no source ranges to recalculate.
+    """
+    if df.empty:
+        print("[WARNING] Dashboard charts not updated because no feedback rows were loaded.")
+        return
+
+    dashboard = wb.sheets['Dashboard']
+    sheet_name = "Dashboard_Data"
+
+    if sheet_name in [sheet.name for sheet in wb.sheets]:
+        chart_data = wb.sheets[sheet_name]
+        chart_data.clear()
+    else:
+        chart_data = wb.sheets.add(sheet_name, after=wb.sheets[-1])
+
+    chart_data.visible = False
+
+    chart_df = df.copy()
+    chart_df['Rating'] = pd.to_numeric(chart_df['Rating'], errors='coerce')
+    chart_df['Date'] = pd.to_datetime(chart_df['Date'], errors='coerce')
+    chart_df['Status'] = chart_df['Status'].astype(str).str.strip()
+
+    categories = CORE_SERVICES
+    type_counts = chart_df['Product'].value_counts().reindex(categories, fill_value=0)
+    rating_sums = chart_df.groupby('Product')['Rating'].sum().reindex(categories, fill_value=0)
+
+    rating_table = (
+        chart_df.pivot_table(
+            index='Product',
+            columns='Rating',
+            values='Status',
+            aggfunc='count',
+            fill_value=0,
+        )
+        .reindex(index=categories, fill_value=0)
+        .reindex(columns=[1, 2, 3, 4, 5], fill_value=0)
+    )
+
+    status_table = pd.DataFrame({
+        "Open": chart_df.assign(
+            DashboardStatus=chart_df['Status'].where(
+                chart_df['Status'].str.lower().eq('resolved'),
+                'Open',
+            )
+        ).query("DashboardStatus == 'Open'")['Product'].value_counts().reindex(categories, fill_value=0),
+        "Resolved": chart_df[chart_df['Status'].str.lower().eq('resolved')]['Product']
+            .value_counts()
+            .reindex(categories, fill_value=0),
+    })
+
+    monthly_counts = (
+        chart_df.dropna(subset=['Date'])
+        .groupby(chart_df.dropna(subset=['Date'])['Date'].dt.to_period('M'))
+        .size()
+        .tail(6)
+    )
+    if monthly_counts.empty:
+        monthly_labels = ["No Date"]
+        monthly_values = [0]
+    else:
+        monthly_labels = [period.strftime('%b %Y') for period in monthly_counts.index]
+        monthly_values = monthly_counts.astype(int).tolist()
+
+    chart_data.range("A1").value = "Feedback Type Distribution"
+    chart_data.range("A2:B2").value = [["Feedback Type", "Count"]]
+    chart_data.range("A3").options(index=False, header=False).value = [
+        [category, int(type_counts.loc[category])] for category in categories
+    ]
+
+    chart_data.range("D1").value = "Rating by Feedback"
+    chart_data.range("D2:E2").value = [["Feedback Type", "Total Rating"]]
+    chart_data.range("D3").options(index=False, header=False).value = [
+        [category, float(rating_sums.loc[category])] for category in categories
+    ]
+
+    chart_data.range("G1").value = "Feedback Rating"
+    chart_data.range("G2:L2").value = [["Feedback Type", 1, 2, 3, 4, 5]]
+    chart_data.range("G3").options(index=False, header=False).value = [
+        [category, *[int(rating_table.loc[category, rating]) for rating in [1, 2, 3, 4, 5]]]
+        for category in categories
+    ]
+
+    chart_data.range("N1").value = "Feedback Over Time"
+    chart_data.range("N2:O2").value = [["Month", "Total"]]
+    chart_data.range("N3").options(index=False, header=False).value = list(zip(monthly_labels, monthly_values))
+
+    chart_data.range("Q1").value = "Status Count"
+    chart_data.range("Q2:S2").value = [["Feedback Type", "Open", "Resolved"]]
+    chart_data.range("Q3").options(index=False, header=False).value = [
+        [
+            category,
+            int(status_table.loc[category, "Open"]),
+            int(status_table.loc[category, "Resolved"]),
+        ]
+        for category in categories
+    ]
+
+    chart_data.autofit('c')
+
+    pie_chart = _safe_chart(dashboard, "Chart 1")
+    if pie_chart:
+        _set_series_formula(
+            pie_chart.SeriesCollection(1),
+            "Total",
+            chart_data.range("A3:A7"),
+            chart_data.range("B3:B7"),
+            1,
+        )
+
+    bar_chart = _safe_chart(dashboard, "Chart 3")
+    if bar_chart:
+        _set_series_formula(
+            bar_chart.SeriesCollection(1),
+            "Total",
+            chart_data.range("D3:D7"),
+            chart_data.range("E3:E7"),
+            1,
+        )
+
+    rating_chart = _safe_chart(dashboard, "Chart 29")
+    if rating_chart:
+        for idx, rating in enumerate([1, 2, 3, 4, 5], start=1):
+            _set_series_formula(
+                rating_chart.SeriesCollection(idx),
+                str(rating),
+                chart_data.range("G3:G7"),
+                chart_data.range((3, 7 + idx), (7, 7 + idx)),
+                idx,
+            )
+
+    time_chart = _safe_chart(dashboard, "Chart 30")
+    if time_chart:
+        last_row = 2 + len(monthly_labels)
+        _set_series_formula(
+            time_chart.SeriesCollection(1),
+            "Total",
+            chart_data.range(f"N3:N{last_row}"),
+            chart_data.range(f"O3:O{last_row}"),
+            1,
+        )
+
+    status_chart = _safe_chart(dashboard, "Chart 31")
+    if status_chart:
+        _set_series_formula(
+            status_chart.SeriesCollection(1),
+            "Open",
+            chart_data.range("Q3:Q7"),
+            chart_data.range("R3:R7"),
+            1,
+        )
+        _set_series_formula(
+            status_chart.SeriesCollection(2),
+            "Resolved",
+            chart_data.range("Q3:Q7"),
+            chart_data.range("S3:S7"),
+            2,
+        )
+
+    try:
+        wb.app.api.CalculateFullRebuild()
+    except Exception:
+        pass
+
+    print("[SUCCESS] Dashboard charts refreshed from Dashboard_Data.")
 
 
 def run_model(excel_path=EXCEL_FILE_PATH):
@@ -88,7 +298,7 @@ def run_model(excel_path=EXCEL_FILE_PATH):
         # 8. Update Dashboard Summary (User Requested Spot)
         print("\n[8/8] Updating Dashboard Summary...")
         try:
-            wb = xw.apps.active.books.active
+            wb = _find_open_workbook(excel_path)
             dashboard = wb.sheets['Dashboard']
             
             # Map products to their Dashboard rows
@@ -120,7 +330,14 @@ def run_model(excel_path=EXCEL_FILE_PATH):
                     # 3. Update Detailed Recommendation (Column L)
                     dashboard.range(f"L{layout['rec_row']}").value = rec
                     
-            print(f"[SUCCESS] Dashboard fully updated: Risk (I18:I22), Issues (H18:H22), Recommendations (L18:L34)")
+            update_dashboard_charts(wb, df)
+
+            try:
+                wb.save()
+            except Exception as save_e:
+                print(f"[WARNING] Dashboard updated but workbook could not be saved automatically: {save_e}")
+
+            print(f"[SUCCESS] Dashboard fully updated: charts, Risk (I18:I22), Issues (H18:H22), Recommendations (L18:L34)")
             
         except Exception as dash_e:
             print(f"[WARNING] Could not update Dashboard summary: {dash_e}")
