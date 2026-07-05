@@ -1,6 +1,7 @@
 import re
 import pandas as pd
 from learning_engine import load_weights
+from probability_calibration import calibrate_scores_from_history
 
 def calculate_probabilities(df):
     """
@@ -84,19 +85,25 @@ def calculate_probabilities(df):
     # Calculate Boosted Sentiment Prob
     grouped['Sentiment Prob'] = grouped.apply(boost_sentiment, axis=1)
     
-    # Combined Probability Score (Weighted Average)
-    # Final = w1 * rating_prob + w2 * sentiment_prob
+    # Combined raw probability score (Weighted Average)
+    # Raw Final = w1 * rating_prob + w2 * sentiment_prob
     if 'rating_weight' in weights and 'sentiment_weight' in weights:
-        grouped['Probability Score'] = (
+        grouped['Raw Probability Score'] = (
             weights['rating_weight'] * grouped['Rating Prob'] +
             weights['sentiment_weight'] * grouped['Sentiment Prob']
         )
     else:
         # Fallback to simple average
-        grouped['Probability Score'] = (grouped['Rating Prob'] + grouped['Sentiment Prob']) / 2
+        grouped['Raw Probability Score'] = (grouped['Rating Prob'] + grouped['Sentiment Prob']) / 2
     
     # Clip to 0-1 range just in case
-    grouped['Probability Score'] = grouped['Probability Score'].clip(0, 1)
+    grouped['Raw Probability Score'] = grouped['Raw Probability Score'].clip(0, 1)
+
+    # Calibrate against resolved history when enough outcome data exists. This
+    # keeps the model score monotonic while making MAE/MSE/R2 more meaningful.
+    grouped['Probability Score'] = calibrate_scores_from_history(
+        grouped['Raw Probability Score']
+    )
     
     print("Probability calculation complete.")
     return grouped

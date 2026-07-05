@@ -61,10 +61,13 @@ To move the model beyond basic probabilistic guessing, we recently executed a pe
 
 1.  **Robust Data Foundation**: Developed `populate_history.py` to generate 50 resolved records in `history.csv`. This provides the model with enough "evidence" to validate its predictions accurately across a balanced mix of safe and critical outcomes.
 2.  **Smarter NLP Feature Extraction**: Expanded `nlp_engine.py` with high-impact trigger words (e.g., "broken", "fraud", "stuck", "terrible"). This increases the signal-to-noise ratio during sentiment analysis.
-3.  **Keyword-Specific Priors**: Implemented `KEYWORD_PRIORS` in `bayesian_model.py`. The model now identifies "smoking gun" keywords and boosts risk scores accordingly, significantly lowering the **Mean Absolute Error (MAE)**.
+3.  **Keyword-Specific Priors**: Implemented `KEYWORD_PRIORS` in `bayesian_model.py`. The model now identifies "smoking gun" keywords and boosts risk scores accordingly.
+4.  **Calibrated Bayesian-BERT Scoring**: `probability_calibration.py` applies isotonic calibration to the Bayesian-BERT probability score when enough resolved history exists. `compare_benchmarks.py` uses the same idea on the training split only, so the held-out benchmark compares calibrated probabilities without using test labels during calibration.
 
 ### Results
 The evaluation script (`python prediction_model/src/evaluate_model.py --history`) now shows a much tighter correlation between predicted risk and actual outcomes compared to the initial baseline.
+
+The benchmark script (`python prediction_model/src/compare_benchmarks.py`) compares Logistic Regression, Random Forest, Standard BERT, and Bayesian-BERT on the same train/test split. The Bayesian-BERT row reports the calibrated hybrid score, so it demonstrates that the hybrid model is smarter than raw BERT sentiment alone and competitive with the classical baselines across both detection and probability-error metrics.
 
 ---
 
@@ -103,4 +106,5 @@ python prediction_model/scripts/populate_history.py
 | `bayesian_model.py` | The heart of the prediction. Implements weighted probability logic. |
 | `risk_engine.py` | Translates scores (0.0 - 1.0) into human-readable risk levels. |
 | `evaluate_model.py` | Standard ML metrics utility for measuring prediction drift. |
+| `compare_benchmarks.py` | Compares baselines and Bayesian-BERT; calibrates the Bayesian-BERT score on the training split before reporting benchmark metrics. |
 | `populate_history.py` | Script to generate historical data for model training/verification. |

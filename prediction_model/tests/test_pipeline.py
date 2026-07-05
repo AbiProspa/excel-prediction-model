@@ -30,6 +30,7 @@ from bayesian_model import calculate_probabilities
 from risk_engine import assess_risk
 from recommendation_engine import generate_recommendations
 from evaluate_model import evaluate_predictions, auto_update_outcomes
+from compare_benchmarks import calibrate_bayesian_probabilities, calculate_metrics
 
 GENERIC_DEFAULTS = {
     "Immediate investigation required. Escalate to senior management and deploy dedicated resources.",
@@ -86,6 +87,8 @@ def test_pipeline():
           f"got {len(prob_df)} rows")
     check("Probability Score in [0,1]",
           prob_df["Probability Score"].between(0, 1).all())
+    check("Raw Probability Score retained for traceability",
+          "Raw Probability Score" in prob_df.columns)
     for col in ["Feedback Type", "Average Rating", "Average Sentiment Score"]:
         check(f"prob_df has '{col}'", col in prob_df.columns)
 
@@ -163,6 +166,28 @@ def test_evaluation():
               pd.to_numeric(pd.read_csv(path)["outcome"]).notnull().all())
 
 
+def test_benchmark_calibration():
+    print("\n[4] Benchmark calibration for Bayesian-BERT")
+    train_df = pd.DataFrame({
+        "final_prob": [0.05, 0.10, 0.20, 0.35, 0.65, 0.80, 0.90, 0.95],
+        "outcome": [0, 0, 0, 0, 1, 1, 1, 1],
+    })
+    test_df = pd.DataFrame({
+        "final_prob": [0.10, 0.30, 0.70, 0.90],
+        "outcome": [0, 0, 1, 1],
+    })
+
+    calibrated = calibrate_bayesian_probabilities(train_df, test_df)
+    metrics = calculate_metrics("Bayesian-BERT", test_df["outcome"], calibrated)
+    check("calibration returns one probability per test row",
+          len(calibrated) == len(test_df))
+    check("calibrated probabilities stay in [0,1]",
+          pd.Series(calibrated).between(0, 1).all(),
+          str(calibrated))
+    check("calibrated Bayesian-BERT remains accurate on separable data",
+          metrics["Accuracy"] == 1.0, str(metrics))
+
+
 def main():
     print("=" * 60)
     print("  PIPELINE INTEGRATION TEST (no Excel required)")
@@ -170,6 +195,7 @@ def main():
     test_pipeline()
     test_keyword_priors()
     test_evaluation()
+    test_benchmark_calibration()
 
     print("\n" + "=" * 60)
     print(f"  RESULT: {len(PASSED)} passed, {len(FAILED)} failed")

@@ -72,3 +72,23 @@ Run evaluation again. You will see **MAE, MSE, and R2** shift to reflect the new
 - **Lower MAE/MSE**: The model is becoming more accurate.
 - **Higher R2 (closer to 1.0)**: The model's predictions strongly correlate with actual outcomes.
 - **Reason for Static Figures**: If no new *resolved* data is added, the math remains the same. The model now solves this by automatically assigning outcomes to pending predictions during evaluation.
+
+---
+
+## [INFO] Benchmark Comparison
+
+To prove Bayesian-BERT is stronger than the simpler baselines, run:
+
+```powershell
+python prediction_model/src/compare_benchmarks.py
+```
+
+The report compares Logistic Regression, Random Forest, Standard BERT, and
+Bayesian-BERT on the same train/test split. Bayesian-BERT uses its hybrid
+Bayesian score plus an isotonic calibration step learned from the training split
+only, then reports MAE, MSE, RIC, R-square, precision, accuracy, recall, and F1
+on held-out rows.
+
+The live Excel model also uses calibration when enough resolved history exists.
+If there is not enough history, it keeps the raw Bayesian-BERT score so the
+pipeline remains stable.

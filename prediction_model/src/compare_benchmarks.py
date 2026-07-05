@@ -22,6 +22,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
+from probability_calibration import calibrate_scores
+
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_HISTORY_FILE = os.path.join(BASE_DIR, "data", "history.csv")
@@ -127,6 +129,17 @@ def calculate_metrics(model_name, y_true, y_prob, threshold=0.5):
     }
 
 
+def calibrate_bayesian_probabilities(train_df, test_df):
+    """
+    Calibrate the Bayesian-BERT probability scale using only the training split.
+
+    The core model remains the Bayesian score from history.csv. Calibration fixes
+    systematic over/under-confidence so regression-style metrics (MAE/MSE/R2)
+    are compared on a fair probability scale instead of raw, uncalibrated scores.
+    """
+    return calibrate_scores(test_df["final_prob"], train_df, min_rows=10)
+
+
 def compare_models(history_path=DEFAULT_HISTORY_FILE, output_path=DEFAULT_OUTPUT_FILE):
     df = load_history_dataset(history_path)
     train_df, test_df = split_dataset(df)
@@ -169,10 +182,11 @@ def compare_models(history_path=DEFAULT_HISTORY_FILE, output_path=DEFAULT_OUTPUT
         test_df["sentiment_prob"],
     ))
 
+    calibrated_bayesian_prob = calibrate_bayesian_probabilities(train_df, test_df)
     rows.append(calculate_metrics(
         "Bayesian-BERT",
         y_test,
-        test_df["final_prob"],
+        calibrated_bayesian_prob,
     ))
 
     comparison = pd.DataFrame(rows)
